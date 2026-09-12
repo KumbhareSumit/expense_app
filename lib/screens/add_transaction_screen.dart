@@ -133,6 +133,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     _isEditing ? 'Edit Transaction' : 'Add Transaction',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   IconButton(

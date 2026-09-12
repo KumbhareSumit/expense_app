@@ -80,7 +80,10 @@ class AppTheme {
   }
 
   static ThemeData _buildTheme(ColorScheme scheme, MoneyColors moneyColors) {
-    final baseTextTheme = GoogleFonts.poppinsTextTheme();
+    final materialTextTheme = scheme.brightness == Brightness.dark
+        ? ThemeData.dark(useMaterial3: true).textTheme
+        : ThemeData.light(useMaterial3: true).textTheme;
+    final baseTextTheme = GoogleFonts.poppinsTextTheme(materialTextTheme);
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,

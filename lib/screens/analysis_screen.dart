@@ -114,9 +114,13 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                     highestCategory,
                   ),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'Expense Breakdown',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   AspectRatio(
@@ -268,9 +272,10 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   const SizedBox(height: 8),
                   Text(
                     highest?.name ?? 'N/A',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -309,7 +314,10 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
               Expanded(child: Text(summary.name)),
               Text(
                 '$currency${summary.amount.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ],
           ),

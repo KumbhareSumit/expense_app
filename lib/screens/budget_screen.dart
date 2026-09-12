@@ -139,7 +139,8 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
           const SizedBox(height: 24),
           Text(
             'Category budgets',
-            style: Theme.of(context).textTheme.titleLarge,
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
           ),
           const SizedBox(height: 8),
           if (categoryBudgets.isEmpty)

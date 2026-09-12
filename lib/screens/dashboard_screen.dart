@@ -93,11 +93,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     const SizedBox(height: 24),
                     _buildPeriodSelector(),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Spending Trend',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -106,11 +107,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       child: _buildChart(filteredTransactions),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Recent Transactions',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -339,7 +341,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 getTitlesWidget: (value, meta) {
                   return Text(
                     value.toInt().toString(),
-                    style: const TextStyle(fontSize: 10),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   );
                 },
               ),
