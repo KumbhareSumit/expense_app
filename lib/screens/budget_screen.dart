@@ -180,6 +180,8 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
         onPressed: () => _showBudgetDialog(null, budget, categories),
         icon: const Icon(Icons.edit),
         label: Text(budget == null ? 'Set budget' : 'Update budget'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        extendedPadding: const EdgeInsets.symmetric(horizontal: 18),
       ),
     );
   }
