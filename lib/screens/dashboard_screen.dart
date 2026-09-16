@@ -6,11 +6,13 @@ import 'package:intl/intl.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/account_provider.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../utils/icon_helper.dart';
 import '../utils/app_theme.dart';
 import 'add_transaction_screen.dart';
+import 'settings_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -30,6 +32,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final settings = ref.watch(settingsProvider);
     final currency = settings.currencySymbol;
     final moneyColors = context.moneyColors;
+    final accountState = ref.watch(accountProvider);
 
     final filteredTransactions = _filterTransactions(
       transactions,
@@ -53,9 +56,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              // Navigate to settings (not requested but good to have)
-            },
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
         ],
       ),
@@ -68,6 +72,73 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildBalanceCard(balance, currency),
+                    if (accountState.accounts.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 86,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: accountState.accounts.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 10),
+                          itemBuilder: (context, index) {
+                            final account = accountState.accounts[index];
+                            final accountBalance =
+                                accountState.balances[account.id] ??
+                                account.openingBalance;
+                            return Card(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundColor: Color(account.colorValue)
+                                          .withValues(alpha: .15),
+                                      child: Icon(
+                                        IconData(
+                                          account.iconCode,
+                                          fontFamily: 'MaterialIcons',
+                                        ),
+                                        size: 18,
+                                        color: Color(account.colorValue),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          account.name,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelLarge,
+                                        ),
+                                        Text(
+                                          '$currency${accountBalance.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: accountBalance >= 0
+                                                ? moneyColors.income
+                                                : moneyColors.expense,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -387,6 +458,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             .firstOrNull;
 
         return ListTile(
+          onTap: () => _editTransaction(t),
           leading: CircleAvatar(
             backgroundColor: category != null
                 ? Color(category.colorValue).withOpacity(0.2)
@@ -402,18 +474,78 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           title: Text(category?.name ?? 'Unknown'),
           subtitle: Text(DateFormat('MMM dd, yyyy').format(t.date)),
-          trailing: Text(
-            '${t.type == 'income' ? '+' : '-'} $currency ${t.amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: t.type == 'income'
-                  ? context.moneyColors.income
-                  : context.moneyColors.expense,
-              fontWeight: FontWeight.bold,
-            ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${t.type == 'income' ? '+' : '-'} $currency ${t.amount.toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: t.type == 'income'
+                      ? context.moneyColors.income
+                      : context.moneyColors.expense,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Transaction actions',
+                onSelected: (action) {
+                  if (action == 'edit') {
+                    _editTransaction(t);
+                  } else {
+                    _confirmDeleteTransaction(t);
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
+              ),
+            ],
           ),
         );
       },
     );
+  }
+
+  void _editTransaction(TransactionModel transaction) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddTransactionScreen(transaction: transaction),
+    );
+  }
+
+  Future<void> _confirmDeleteTransaction(TransactionModel transaction) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Transaction'),
+        content: const Text(
+          'Are you sure you want to delete this transaction?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true && transaction.id != null) {
+      await ref
+          .read(transactionProvider.notifier)
+          .deleteTransaction(transaction.id!);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Transaction deleted')));
+      }
+    }
   }
 
   void _showAddTransaction(BuildContext context) {

@@ -8,11 +8,15 @@ import 'package:path_provider/path_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
+import '../providers/account_provider.dart';
+import '../providers/goal_provider.dart';
+import '../providers/debt_provider.dart';
 import '../database/db_helper.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import 'categories_screen.dart';
 import 'budget_screen.dart';
+import 'accounts_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -47,6 +51,16 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const Divider(),
           _buildSectionHeader(context, 'Data Management'),
+          ListTile(
+            leading: const Icon(Icons.account_balance_outlined),
+            title: const Text('Manage Accounts'),
+            subtitle: const Text('Cash, bank, cards and wallets'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AccountsScreen()),
+            ),
+          ),
           ListTile(
             leading: const Icon(Icons.category),
             title: const Text('Manage Categories'),
@@ -212,13 +226,7 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _backupData(BuildContext context, WidgetRef ref) async {
     try {
-      final transactions = ref.read(transactionProvider);
-      final categories = ref.read(categoryProvider);
-
-      final data = {
-        'transactions': transactions.map((t) => t.toMap()).toList(),
-        'categories': categories.map((c) => c.toMap()).toList(),
-      };
+      final data = await DBHelper().exportAllData();
 
       final jsonString = jsonEncode(data);
       final directory = await getApplicationDocumentsDirectory();
@@ -251,21 +259,14 @@ class SettingsScreen extends ConsumerWidget {
       final jsonString = await file.readAsString();
       final data = jsonDecode(jsonString) as Map<String, dynamic>;
 
-      final categoriesJson = data['categories'] as List<dynamic>;
-      final transactionsJson = data['transactions'] as List<dynamic>;
-
-      final categories = categoriesJson
-          .map((c) => CategoryModel.fromMap(c))
-          .toList();
-      final transactions = transactionsJson
-          .map((t) => TransactionModel.fromMap(t))
-          .toList();
-
-      await DBHelper().restoreData(categories, transactions);
+      await DBHelper().restoreAllData(data);
 
       // Invalidate providers to reload data
       ref.invalidate(transactionProvider);
       ref.invalidate(categoryProvider);
+      ref.invalidate(accountProvider);
+      ref.invalidate(goalProvider);
+      ref.invalidate(debtProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Data restored successfully!')),

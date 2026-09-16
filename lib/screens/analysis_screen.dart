@@ -9,6 +9,7 @@ import '../providers/settings_provider.dart';
 import '../models/transaction_model.dart';
 import '../models/category_model.dart';
 import '../utils/app_theme.dart';
+import 'add_transaction_screen.dart';
 
 enum AnalysisPeriod { daily, weekly, monthly, yearly }
 
@@ -140,6 +141,24 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   _buildLegend(
                     categoryData,
                     totalExpense,
+                    settings.currencySymbol,
+                  ),
+                  const SizedBox(height: 24),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Transactions',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTransactionList(
+                    filteredTransactions,
+                    categories,
                     settings.currencySymbol,
                   ),
                 ],
@@ -324,6 +343,106 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         );
       }).toList(),
     );
+  }
+
+  Widget _buildTransactionList(
+    List<TransactionModel> transactions,
+    List<CategoryModel> categories,
+    String currency,
+  ) {
+    return Column(
+      children: transactions.map((transaction) {
+        final category = categories.firstWhere(
+          (item) => item.id == transaction.categoryId,
+          orElse: () => CategoryModel(
+            name: 'Unknown',
+            iconCode: Icons.help.codePoint,
+            colorValue: Colors.grey.value,
+            type: transaction.type,
+          ),
+        );
+
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          onTap: () => _editTransaction(transaction),
+          leading: CircleAvatar(
+            backgroundColor: Color(category.colorValue).withValues(alpha: .15),
+            child: Icon(Icons.category, color: Color(category.colorValue)),
+          ),
+          title: Text(category.name),
+          subtitle: Text(DateFormat('MMM dd, yyyy').format(transaction.date)),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${transaction.type == 'income' ? '+' : '-'}$currency${transaction.amount.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: transaction.type == 'income'
+                      ? context.moneyColors.income
+                      : context.moneyColors.expense,
+                ),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Transaction actions',
+                onSelected: (action) {
+                  if (action == 'edit') {
+                    _editTransaction(transaction);
+                  } else {
+                    _confirmDeleteTransaction(transaction);
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                ],
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _editTransaction(TransactionModel transaction) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddTransactionScreen(transaction: transaction),
+    );
+  }
+
+  Future<void> _confirmDeleteTransaction(TransactionModel transaction) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Transaction'),
+        content: const Text(
+          'Are you sure you want to delete this transaction?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true && transaction.id != null) {
+      await ref
+          .read(transactionProvider.notifier)
+          .deleteTransaction(transaction.id!);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Transaction deleted')));
+      }
+    }
   }
 }
 

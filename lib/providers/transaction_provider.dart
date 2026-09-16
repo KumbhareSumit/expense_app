@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../database/db_helper.dart';
 import '../models/transaction_model.dart';
+import 'account_provider.dart';
 
 class TransactionNotifier extends StateNotifier<List<TransactionModel>> {
   final DBHelper _dbHelper = DBHelper();
+  final Ref? _ref;
 
-  TransactionNotifier() : super([]) {
+  TransactionNotifier([this._ref]) : super([]) {
     _fetchTransactions();
   }
 
@@ -30,8 +33,10 @@ class TransactionNotifier extends StateNotifier<List<TransactionModel>> {
         note: transaction.note,
         paymentMode: transaction.paymentMode,
         isRecurring: transaction.isRecurring,
+        accountId: transaction.accountId,
       );
       state = [newTransaction, ...state];
+      await _ref?.read(accountProvider.notifier).refresh();
     } catch (e) {
       // Handle error
     }
@@ -42,8 +47,9 @@ class TransactionNotifier extends StateNotifier<List<TransactionModel>> {
       await _dbHelper.updateTransaction(transaction);
       state = [
         for (final t in state)
-          if (t.id == transaction.id) transaction else t
+          if (t.id == transaction.id) transaction else t,
       ];
+      await _ref?.read(accountProvider.notifier).refresh();
     } catch (e) {
       // Handle error
     }
@@ -53,12 +59,14 @@ class TransactionNotifier extends StateNotifier<List<TransactionModel>> {
     try {
       await _dbHelper.deleteTransaction(id);
       state = state.where((t) => t.id != id).toList();
+      await _ref?.read(accountProvider.notifier).refresh();
     } catch (e) {
       // Handle error
     }
   }
 }
 
-final transactionProvider = StateNotifierProvider<TransactionNotifier, List<TransactionModel>>((ref) {
-  return TransactionNotifier();
-});
+final transactionProvider =
+    StateNotifierProvider<TransactionNotifier, List<TransactionModel>>((ref) {
+      return TransactionNotifier(ref);
+    });

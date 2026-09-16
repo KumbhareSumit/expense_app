@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/account_provider.dart';
+import '../models/account_model.dart';
 import '../models/transaction_model.dart';
 import '../utils/icon_helper.dart';
 
@@ -27,6 +29,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   int? _selectedCategoryId;
   DateTime _selectedDate = DateTime.now();
   String _paymentMode = 'Cash'; // Default payment mode
+  int? _selectedAccountId;
 
   bool get _isEditing => widget.transaction != null;
 
@@ -39,6 +42,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       _selectedCategoryId = transaction.categoryId;
       _selectedDate = transaction.date;
       _paymentMode = transaction.paymentMode;
+      _selectedAccountId = transaction.accountId;
       _amountController.text = transaction.amount.toString();
       _noteController.text = transaction.note;
     }
@@ -84,6 +88,9 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       date: _selectedDate,
       note: _noteController.text,
       paymentMode: _paymentMode,
+      accountId:
+          _selectedAccountId ??
+          ref.read(accountProvider).accounts.firstOrNull?.id,
     );
 
     if (_isEditing) {
@@ -101,7 +108,15 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         .where((c) => c.type == _type)
         .toList();
     final settings = ref.watch(settingsProvider);
+    final accountState = ref.watch(accountProvider);
     final currency = settings.currencySymbol;
+    final accountOptions = <int, AccountModel>{
+      for (final account in accountState.accounts)
+        if (account.id != null) account.id!: account,
+    };
+    final selectedAccountId = accountOptions.containsKey(_selectedAccountId)
+        ? _selectedAccountId
+        : accountOptions.keys.firstOrNull;
 
     final theme = Theme.of(context);
 
@@ -141,6 +156,25 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
+              ),
+              const SizedBox(height: 20),
+
+              DropdownButtonFormField<int?>(
+                initialValue: selectedAccountId,
+                decoration: const InputDecoration(
+                  labelText: 'Account / Wallet',
+                  prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                ),
+                items: accountOptions.values
+                    .map(
+                      (account) => DropdownMenuItem<int?>(
+                        value: account.id,
+                        child: Text(account.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _selectedAccountId = value),
               ),
               const SizedBox(height: 20),
 

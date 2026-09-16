@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'analysis_screen.dart';
+import 'accounts_screen.dart';
 import 'budget_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
-import 'settings_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -21,7 +21,7 @@ class _MainNavigationState extends State<MainNavigation> {
     AnalysisScreen(),
     HistoryScreen(),
     BudgetScreen(),
-    SettingsScreen(),
+    AccountsScreen(),
   ];
 
   @override
@@ -54,9 +54,9 @@ class _MainNavigationState extends State<MainNavigation> {
             label: 'Budget',
           ),
           NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
+            icon: Icon(Icons.account_balance_outlined),
+            selectedIcon: Icon(Icons.account_balance),
+            label: 'Accounts',
           ),
         ],
       ),

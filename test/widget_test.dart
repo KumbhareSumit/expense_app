@@ -22,6 +22,6 @@ void main() {
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Analysis'), findsOneWidget);
     expect(find.text('Budget'), findsOneWidget);
-    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Accounts'), findsOneWidget);
   });
 }

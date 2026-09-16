@@ -7,6 +7,7 @@ class TransactionModel {
   final String note;
   final String paymentMode;
   final bool isRecurring;
+  final int? accountId;
 
   TransactionModel({
     this.id,
@@ -17,6 +18,7 @@ class TransactionModel {
     this.note = '',
     required this.paymentMode,
     this.isRecurring = false,
+    this.accountId,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +31,7 @@ class TransactionModel {
       'note': note,
       'paymentMode': paymentMode,
       'isRecurring': isRecurring ? 1 : 0,
+      'accountId': accountId,
     };
   }
 
@@ -42,6 +45,7 @@ class TransactionModel {
       note: map['note'],
       paymentMode: map['paymentMode'],
       isRecurring: map['isRecurring'] == 1,
+      accountId: map['accountId'] as int?,
     );
   }
 }
