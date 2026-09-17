@@ -5,6 +5,7 @@ import '../models/goal_model.dart';
 import '../providers/goal_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
+import '../utils/icon_helper.dart';
 
 class GoalsScreen extends ConsumerWidget {
   const GoalsScreen({super.key});
@@ -55,7 +56,7 @@ class GoalsScreen extends ConsumerWidget {
                     backgroundColor: Color(goal.colorValue)
                         .withValues(alpha: .15),
                     child: Icon(
-                      IconData(goal.iconCode, fontFamily: 'MaterialIcons'),
+                      IconHelper.getIcon(goal.iconCode),
                       color: Color(goal.colorValue),
                     ),
                   ),
@@ -65,6 +66,20 @@ class GoalsScreen extends ConsumerWidget {
                       goal.name,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Goal actions',
+                    onSelected: (action) {
+                      if (action == 'edit') {
+                        _showGoalDialog(context, ref, goal);
+                      } else {
+                        _confirmDelete(context, ref, goal);
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ],
                   ),
                   if (goal.isCompleted)
                     Icon(Icons.check_circle, color: context.moneyColors.income),
@@ -100,15 +115,18 @@ class GoalsScreen extends ConsumerWidget {
     return days < 0 ? 'Deadline passed' : '$days days remaining';
   }
 
-  void _showGoalDialog(BuildContext context, WidgetRef ref) {
-    final name = TextEditingController();
-    final target = TextEditingController();
-    DateTime? deadline;
+  void _showGoalDialog(BuildContext context, WidgetRef ref, [GoalModel? goal]) {
+    final name = TextEditingController(text: goal?.name ?? '');
+    final target = TextEditingController(
+      text: goal == null ? '' : goal.targetAmount.toString(),
+    );
+    DateTime? deadline = goal?.deadline;
+    final isEditing = goal != null;
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('New savings goal'),
+          title: Text(isEditing ? 'Edit savings goal' : 'New savings goal'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -129,7 +147,7 @@ class GoalsScreen extends ConsumerWidget {
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: DateTime.now().add(const Duration(days: 30)),
-                    firstDate: DateTime.now(),
+                    firstDate: DateTime(2000),
                     lastDate: DateTime(2100),
                   );
                   if (picked != null) setState(() => deadline = picked);
@@ -153,26 +171,56 @@ class GoalsScreen extends ConsumerWidget {
                 final amount = double.tryParse(target.text);
                 if (name.text.trim().isEmpty || amount == null || amount <= 0)
                   return;
-                ref
-                    .read(goalProvider.notifier)
-                    .addGoal(
-                      GoalModel(
-                        name: name.text.trim(),
-                        targetAmount: amount,
-                        currentAmount: 0,
-                        deadline: deadline,
-                        colorValue: Colors.teal.value,
-                        iconCode: Icons.flag.codePoint,
-                      ),
-                    );
+                final updatedGoal = GoalModel(
+                  id: goal?.id,
+                  name: name.text.trim(),
+                  targetAmount: amount,
+                  currentAmount: goal?.currentAmount ?? 0,
+                  deadline: deadline,
+                  colorValue: goal?.colorValue ?? Colors.teal.value,
+                  iconCode: goal?.iconCode ?? Icons.flag.codePoint,
+                  isCompleted: goal?.isCompleted ?? false,
+                );
+                if (isEditing) {
+                  ref.read(goalProvider.notifier).updateGoal(updatedGoal);
+                } else {
+                  ref.read(goalProvider.notifier).addGoal(updatedGoal);
+                }
                 Navigator.pop(dialogContext);
               },
-              child: const Text('Create'),
+              child: Text(isEditing ? 'Save' : 'Create'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    GoalModel goal,
+  ) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete savings goal?'),
+        content: Text('Delete "${goal.name}" and its contributions?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete == true && goal.id != null) {
+      await ref.read(goalProvider.notifier).deleteGoal(goal.id!);
+    }
   }
 
   void _showContributionDialog(

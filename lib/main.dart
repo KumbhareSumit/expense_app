@@ -24,7 +24,7 @@ class MyApp extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
 
     return MaterialApp(
-      title: 'MyMoney',
+      title: 'Atthani',
       debugShowCheckedModeBanner: false,
       themeMode: settings.themeMode,
       theme: AppTheme.light(),

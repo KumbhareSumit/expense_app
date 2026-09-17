@@ -7,6 +7,7 @@ import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/account_provider.dart';
+import '../providers/debt_provider.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../utils/icon_helper.dart';
@@ -30,6 +31,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final transactions = ref.watch(transactionProvider);
     final categories = ref.watch(categoryProvider);
     final settings = ref.watch(settingsProvider);
+    final debts = ref.watch(debtProvider);
     final currency = settings.currencySymbol;
     final moneyColors = context.moneyColors;
     final accountState = ref.watch(accountProvider);
@@ -41,14 +43,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     double totalIncome = 0;
     double totalExpense = 0;
+    double totalInvestment = 0;
     for (var t in filteredTransactions) {
       if (t.type == 'income') {
         totalIncome += t.amount;
-      } else {
+      } else if (t.type == 'expense') {
         totalExpense += t.amount;
+      } else if (t.type == 'investment') {
+        totalInvestment += t.amount;
       }
     }
     final balance = totalIncome - totalExpense;
+
+    double owedToMe = 0;
+    double iOwe = 0;
+    for (var d in debts) {
+      if (!d.isSettled) {
+        final remaining = d.totalAmount - d.paidAmount;
+        if (d.type == 'lent') {
+          owedToMe += remaining;
+        } else {
+          iOwe += remaining;
+        }
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -99,10 +117,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                       backgroundColor: Color(account.colorValue)
                                           .withValues(alpha: .15),
                                       child: Icon(
-                                        IconData(
-                                          account.iconCode,
-                                          fontFamily: 'MaterialIcons',
-                                        ),
+                                        IconHelper.getIcon(account.iconCode),
                                         size: 18,
                                         color: Color(account.colorValue),
                                       ),
@@ -139,7 +154,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 16),
+                    if (totalInvestment > 0) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildSummaryCard(
+                          'Investment',
+                          totalInvestment,
+                          currency,
+                          Colors.teal,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else
+                      const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -161,22 +189,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    if (owedToMe > 0 || iOwe > 0)
+                      _buildDebtsLoansCard(owedToMe, iOwe, currency),
                     const SizedBox(height: 24),
                     _buildPeriodSelector(),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Spending Trend',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 260),
-                      child: _buildChart(filteredTransactions),
-                    ),
                     const SizedBox(height: 24),
                     Text(
                       'Recent Transactions',
@@ -293,6 +310,94 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
+  Widget _buildDebtsLoansCard(double owedToMe, double iOwe, String currency) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.handshake_outlined, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Debts & Loans',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Owed to me',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.green.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$currency${owedToMe.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 40,
+                  color: Theme.of(context).dividerColor,
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'I Owe',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$currency${iOwe.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSummaryCard(
     String title,
     double amount,
@@ -349,92 +454,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildChart(List<TransactionModel> filteredTransactions) {
-    // Basic implementation of trend chart
-    // For simplicity, we'll group by day if weekly/monthly, by month if yearly
-    Map<int, double> data = {};
 
-    if (_selectedPeriod == 'Yearly') {
-      for (var t in filteredTransactions) {
-        if (t.type == 'expense') {
-          data[t.date.month] = (data[t.date.month] ?? 0) + t.amount;
-        }
-      }
-    } else {
-      for (var t in filteredTransactions) {
-        if (t.type == 'expense') {
-          data[t.date.day] = (data[t.date.day] ?? 0) + t.amount;
-        }
-      }
-    }
-
-    List<BarChartGroupData> barGroups = [];
-    final sortedKeys = data.keys.toList()..sort();
-
-    for (int i = 0; i < sortedKeys.length; i++) {
-      barGroups.add(
-        BarChartGroupData(
-          x: sortedKeys[i],
-          barRods: [
-            BarChartRodData(
-              toY: data[sortedKeys[i]]!,
-              color: Theme.of(context).colorScheme.primary,
-              width: 16,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (barGroups.isEmpty) {
-      return const SizedBox(
-        height: 200,
-        child: Center(child: Text('Not enough data for chart')),
-      );
-    }
-
-    return SizedBox(
-      height: 200,
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: data.values.isEmpty
-              ? 100
-              : data.values.reduce((a, b) => a > b ? a : b) * 1.2,
-          barGroups: barGroups,
-          gridData: const FlGridData(show: false),
-          titlesData: FlTitlesData(
-            show: true,
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  return Text(
-                    value.toInt().toString(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  );
-                },
-              ),
-            ),
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          borderData: FlBorderData(show: false),
-        ),
-      ),
-    );
-  }
 
   Widget _buildTransactionList(
     List<TransactionModel> transactions,

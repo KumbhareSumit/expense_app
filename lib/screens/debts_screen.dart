@@ -86,6 +86,20 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Debt actions',
+                    onSelected: (action) {
+                      if (action == 'edit') {
+                        _showDebtDialog(context, ref, debt);
+                      } else {
+                        _confirmDelete(context, ref, debt);
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ],
+                  ),
                   if (debt.isSettled)
                     Icon(Icons.check_circle, color: context.moneyColors.income)
                   else
@@ -135,16 +149,19 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
     );
   }
 
-  void _showDebtDialog(BuildContext context, WidgetRef ref) {
-    final person = TextEditingController();
-    final amount = TextEditingController();
-    final note = TextEditingController();
-    DateTime? dueDate;
+  void _showDebtDialog(BuildContext context, WidgetRef ref, [DebtModel? debt]) {
+    final person = TextEditingController(text: debt?.personName ?? '');
+    final amount = TextEditingController(
+      text: debt == null ? '' : debt.totalAmount.toString(),
+    );
+    final note = TextEditingController(text: debt?.note ?? '');
+    DateTime? dueDate = debt?.dueDate;
+    final isEditing = debt != null;
     showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Add debt or loan'),
+          title: Text(isEditing ? 'Edit debt or loan' : 'Add debt or loan'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -168,7 +185,7 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: DateTime.now(),
-                    firstDate: DateTime.now(),
+                    firstDate: DateTime(2000),
                     lastDate: DateTime(2100),
                   );
                   if (picked != null) setState(() => dueDate = picked);
@@ -192,18 +209,22 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
                 final value = double.tryParse(amount.text);
                 if (person.text.trim().isEmpty || value == null || value <= 0)
                   return;
-                ref
-                    .read(debtProvider.notifier)
-                    .addDebt(
-                      DebtModel(
-                        personName: person.text.trim(),
-                        totalAmount: value,
-                        type: _type,
-                        date: DateTime.now(),
-                        dueDate: dueDate,
-                        note: note.text.trim(),
-                      ),
-                    );
+                final updatedDebt = DebtModel(
+                  id: debt?.id,
+                  personName: person.text.trim(),
+                  totalAmount: value,
+                  paidAmount: debt?.paidAmount ?? 0,
+                  type: debt?.type ?? _type,
+                  date: debt?.date ?? DateTime.now(),
+                  dueDate: dueDate,
+                  note: note.text.trim(),
+                  isSettled: debt?.isSettled ?? false,
+                );
+                if (isEditing) {
+                  ref.read(debtProvider.notifier).updateDebt(updatedDebt);
+                } else {
+                  ref.read(debtProvider.notifier).addDebt(updatedDebt);
+                }
                 Navigator.pop(dialogContext);
               },
               child: const Text('Save'),
@@ -212,6 +233,33 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    DebtModel debt,
+  ) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete debt or loan?'),
+        content: Text('Delete the record for "${debt.personName}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete == true && debt.id != null) {
+      await ref.read(debtProvider.notifier).deleteDebt(debt.id!);
+    }
   }
 
   void _showPaymentDialog(

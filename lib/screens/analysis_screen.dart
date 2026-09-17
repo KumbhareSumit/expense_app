@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
 
 import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
@@ -43,11 +44,24 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         .fold(0.0, (sum, t) => sum + t.amount);
     final savings = totalIncome - totalExpense;
 
-    final highestCategory = categoryData.isEmpty
-        ? null
-        : categoryData.entries
-              .reduce((a, b) => a.value.amount > b.value.amount ? a : b)
-              .value;
+    final now = DateTime.now();
+    int daysElapsed = 1;
+    switch (_selectedPeriod) {
+      case AnalysisPeriod.daily:
+        daysElapsed = 1;
+        break;
+      case AnalysisPeriod.weekly:
+        daysElapsed = now.weekday;
+        break;
+      case AnalysisPeriod.monthly:
+        daysElapsed = now.day;
+        break;
+      case AnalysisPeriod.yearly:
+        daysElapsed = now.difference(DateTime(now.year, 1, 1)).inDays + 1;
+        break;
+    }
+    
+    final dailyAverage = totalExpense / daysElapsed;
 
     return Scaffold(
       appBar: AppBar(
@@ -56,32 +70,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           preferredSize: const Size.fromHeight(50),
           child: Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
-            child: SegmentedButton<AnalysisPeriod>(
-              segments: const [
-                ButtonSegment(
-                  value: AnalysisPeriod.daily,
-                  label: Text('Daily'),
-                ),
-                ButtonSegment(
-                  value: AnalysisPeriod.weekly,
-                  label: Text('Weekly'),
-                ),
-                ButtonSegment(
-                  value: AnalysisPeriod.monthly,
-                  label: Text('Monthly'),
-                ),
-                ButtonSegment(
-                  value: AnalysisPeriod.yearly,
-                  label: Text('Yearly'),
-                ),
-              ],
-              selected: {_selectedPeriod},
-              onSelectionChanged: (newSelection) {
-                setState(() {
-                  _selectedPeriod = newSelection.first;
-                });
-              },
-            ),
+            child: _buildPeriodSelector(),
           ),
         ),
       ),
@@ -112,7 +101,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   _buildSummaryCards(
                     settings.currencySymbol,
                     savings,
-                    highestCategory,
+                    dailyAverage,
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -124,24 +113,11 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  AspectRatio(
-                    aspectRatio: 1.3,
-                    child: PieChart(
-                      PieChartData(
-                        sections: _buildChartSections(
-                          categoryData,
-                          totalExpense,
-                        ),
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 40,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildLegend(
-                    categoryData,
-                    totalExpense,
+                  _buildInfographicChart(
+                    filteredTransactions.where((t) => t.type == 'expense').toList(),
+                    categories,
                     settings.currencySymbol,
+                    totalExpense,
                   ),
                   const SizedBox(height: 24),
                   Align(
@@ -164,6 +140,61 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    final periods = [
+      (AnalysisPeriod.daily, 'Daily'),
+      (AnalysisPeriod.weekly, 'Weekly'),
+      (AnalysisPeriod.monthly, 'Monthly'),
+      (AnalysisPeriod.yearly, 'Yearly'),
+    ];
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outline),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        children: periods.map((period) {
+          final isSelected = _selectedPeriod == period.$1;
+          final index = periods.indexOf(period);
+
+          return Expanded(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: isSelected ? scheme.primaryContainer : scheme.surface,
+                border: index == 0
+                    ? null
+                    : Border(left: BorderSide(color: scheme.outline)),
+              ),
+              child: Semantics(
+                button: true,
+                selected: isSelected,
+                label: period.$2,
+                child: InkWell(
+                  onTap: () => setState(() => _selectedPeriod = period.$1),
+                  child: Center(
+                    child: SizedBox(
+                      height: 40,
+                      child: Center(
+                        child: Text(
+                          period.$2,
+                          style: const TextStyle(height: 1.0),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -221,32 +252,195 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return data;
   }
 
-  List<PieChartSectionData> _buildChartSections(
-    Map<int, _CategorySummary> data,
+  Widget _buildInfographicChart(
+    List<TransactionModel> expenses,
+    List<CategoryModel> categories,
+    String currency,
     double totalExpense,
   ) {
-    return data.entries.map((entry) {
-      final percentage = (entry.value.amount / totalExpense) * 100;
-      return PieChartSectionData(
-        color: entry.value.color,
-        value: entry.value.amount,
-        title: '${percentage.toStringAsFixed(1)}%',
-        radius: 60,
-        titleStyle: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: entry.value.color.computeLuminance() > .5
-              ? Colors.black87
-              : Colors.white,
+    if (expenses.isEmpty || totalExpense <= 0) {
+      return const SizedBox(
+        height: 150,
+        child: Center(child: Text('No expenses to breakdown')),
+      );
+    }
+
+    Map<int, double> categoryTotals = {};
+    for (var t in expenses) {
+      categoryTotals[t.categoryId] = (categoryTotals[t.categoryId] ?? 0) + t.amount;
+    }
+
+    final sortedEntries = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    List<PieChartSectionData> sections = [];
+    for (var entry in sortedEntries) {
+      final cat = categories.firstWhere(
+        (c) => c.id == entry.key,
+        orElse: () => CategoryModel(name: 'Unknown', type: 'expense', colorValue: Colors.grey.value, iconCode: Icons.help.codePoint, isCustom: false),
+      );
+      sections.add(
+        PieChartSectionData(
+          value: entry.value,
+          color: Color(cat.colorValue),
+          radius: 20,
+          showTitle: false,
         ),
       );
-    }).toList();
+    }
+
+    List<Widget> stackChildren = [];
+
+    // Central Donut
+    stackChildren.add(
+      Align(
+        alignment: Alignment.center,
+        child: SizedBox(
+          height: 140,
+          width: 140,
+          child: Stack(
+            children: [
+              PieChart(
+                PieChartData(
+                  sections: sections,
+                  centerSpaceRadius: 40,
+                  sectionsSpace: 3,
+                ),
+              ),
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Total',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      '$currency${totalExpense.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Satellites
+    final leftItems = <MapEntry<int, double>>[];
+    final rightItems = <MapEntry<int, double>>[];
+    for (int i = 0; i < (sortedEntries.length > 6 ? 6 : sortedEntries.length); i++) {
+      if (i % 2 == 0) leftItems.add(sortedEntries[i]);
+      else rightItems.add(sortedEntries[i]);
+    }
+
+    Alignment getAlignment(int count, int index, bool isLeft) {
+      final x = isLeft ? -0.95 : 0.95;
+      if (count == 1) return Alignment(x, 0.0);
+      if (count == 2) return Alignment(x, index == 0 ? -0.6 : 0.6);
+      return Alignment(x, index == 0 ? -0.85 : (index == 1 ? 0.0 : 0.85));
+    }
+
+    void buildSatellites(List<MapEntry<int, double>> items, bool isLeft) {
+      for (int i = 0; i < items.length; i++) {
+        final entry = items[i];
+        final cat = categories.firstWhere(
+          (c) => c.id == entry.key,
+          orElse: () => CategoryModel(name: 'Unknown', type: 'expense', colorValue: Colors.grey.value, iconCode: Icons.help.codePoint, isCustom: false),
+        );
+        final percent = entry.value / totalExpense;
+
+        stackChildren.add(
+          Align(
+            alignment: getAlignment(items.length, i, isLeft),
+            child: SizedBox(
+              width: 80, // Constrain width for tight mobile layout
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildMiniDonut(percent, Color(cat.colorValue)),
+                  const SizedBox(height: 4),
+                  Text(
+                    cat.name,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    '$currency${entry.value.toStringAsFixed(0)}',
+                    style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    buildSatellites(leftItems, true);
+    buildSatellites(rightItems, false);
+
+    return Container(
+      height: 340,
+      width: double.infinity,
+      child: CustomPaint(
+        painter: _InfographicLinesPainter(
+          leftCount: leftItems.length,
+          rightCount: rightItems.length,
+          lineColor: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+        ),
+        child: Stack(
+          children: stackChildren,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniDonut(double percent, Color color) {
+    return SizedBox(
+      width: 40, // Smaller satellite donuts
+      height: 40,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CircularProgressIndicator(
+            value: percent,
+            strokeWidth: 5, // Thinner stroke
+            backgroundColor: color.withValues(alpha: 0.15),
+            color: color,
+            strokeCap: StrokeCap.round,
+          ),
+          Center(
+            child: Text(
+              '${(percent * 100).toInt()}%',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSummaryCards(
     String currency,
     double savings,
-    _CategorySummary? highest,
+    double dailyAverage,
   ) {
     final moneyColors = context.moneyColors;
     return Row(
@@ -285,14 +479,14 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
               child: Column(
                 children: [
                   Text(
-                    'Top Category',
+                    'Daily Average',
                     style: TextStyle(color: moneyColors.muted),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    highest?.name ?? 'N/A',
+                    '$currency${dailyAverage.toStringAsFixed(2)} / day',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
@@ -311,38 +505,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     double totalExpense,
     String currency,
   ) {
-    final sortedList = data.values.toList()
-      ..sort((a, b) => b.amount.compareTo(a.amount));
-
-    return Column(
-      children: sortedList.map((summary) {
-        final percentage = (summary.amount / totalExpense) * 100;
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4.0),
-          child: Row(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: summary.color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: Text(summary.name)),
-              Text(
-                '$currency${summary.amount.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
+    return const SizedBox.shrink(); // Disabled because we use _buildInfographicChart now
   }
 
   Widget _buildTransactionList(
@@ -359,6 +522,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
             iconCode: Icons.help.codePoint,
             colorValue: Colors.grey.value,
             type: transaction.type,
+            isCustom: false,
           ),
         );
 
@@ -446,6 +610,66 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   }
 }
 
+class _InfographicLinesPainter extends CustomPainter {
+  final int leftCount;
+  final int rightCount;
+  final Color lineColor;
+
+  _InfographicLinesPainter({
+    required this.leftCount,
+    required this.rightCount,
+    required this.lineColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke
+      ..strokeJoin = StrokeJoin.round;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = 65.0; // Starts line at the outer edge of the main donut
+
+    double getAlignY(int count, int index) {
+      if (count == 1) return 0.0;
+      if (count == 2) return index == 0 ? -0.6 : 0.6;
+      return index == 0 ? -0.85 : (index == 1 ? 0.0 : 0.85);
+    }
+
+    void drawLines(int count, bool isLeft) {
+      final targetX = isLeft ? size.width * 0.15 : size.width * 0.85;
+      final midX = isLeft ? size.width * 0.32 : size.width * 0.68;
+      
+      for (int i = 0; i < count; i++) {
+        final alignY = getAlignY(count, i);
+        final y = center.dy + (size.height / 2) * alignY;
+        
+        final deltaY = y - center.dy;
+        final deltaX = midX - center.dx;
+        final angle = math.atan2(deltaY, deltaX);
+        
+        final startX = center.dx + radius * math.cos(angle);
+        final startY = center.dy + radius * math.sin(angle);
+        
+        final path = Path();
+        path.moveTo(startX, startY);
+        path.lineTo(midX, y); // Diagonal part
+        path.lineTo(targetX, y); // Horizontal part pointing to satellite
+        
+        canvas.drawPath(path, paint);
+      }
+    }
+    
+    drawLines(leftCount, true);
+    drawLines(rightCount, false);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _CategorySummary {
   final String name;
   final Color color;
@@ -457,3 +681,4 @@ class _CategorySummary {
     required this.amount,
   });
 }
+

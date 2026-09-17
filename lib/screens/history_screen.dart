@@ -207,6 +207,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         type: 'expense',
       ),
     );
+    final isIncome = t.type == 'income';
+    final isInvestment = t.type == 'investment';
 
     return Dismissible(
       key: Key(t.id.toString()),
@@ -258,11 +260,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         title: Text(category.name),
         subtitle: t.note.isNotEmpty ? Text(t.note) : null,
         trailing: Text(
-          '${t.type == 'income' ? '+' : '-'}$currency${t.amount.toStringAsFixed(2)}',
+          '${isIncome
+              ? '+'
+              : isInvestment
+              ? ''
+              : '-'}$currency${t.amount.toStringAsFixed(2)}',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: t.type == 'income'
+            color: isIncome
                 ? context.moneyColors.income
+                : isInvestment
+                ? Colors.teal
                 : context.moneyColors.expense,
           ),
         ),
@@ -318,6 +326,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                         onSelected: (val) {
                           setModalState(
                             () => _selectedType = val ? 'expense' : null,
+                          );
+                          setState(() {});
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        label: const Text('Investment'),
+                        selected: _selectedType == 'investment',
+                        onSelected: (val) {
+                          setModalState(
+                            () => _selectedType = val ? 'investment' : null,
                           );
                           setState(() {});
                         },

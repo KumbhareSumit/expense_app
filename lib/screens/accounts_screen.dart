@@ -58,52 +58,51 @@ class AccountsScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 24),
           Text('Planning', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Card(
-            child: Column(
-              children: [
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  minVerticalPadding: 12,
-                  leading: const CircleAvatar(child: Icon(Icons.flag_outlined)),
-                  title: Text(
-                    'Savings Goals',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  subtitle: const Text(
-                    'Track money saved for something important',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const GoalsScreen()),
-                  ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  minVerticalPadding: 12,
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.handshake_outlined),
-                  ),
-                  title: Text(
-                    'Debt & Loans',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  subtitle: const Text('Track money owed to you or by you'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const DebtsScreen()),
-                  ),
-                ),
-              ],
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              minVerticalPadding: 12,
+              leading: const CircleAvatar(child: Icon(Icons.flag_outlined)),
+              title: Text(
+                'Savings Goals',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              subtitle: const Text(
+                'Track money saved for something important',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GoalsScreen()),
+              ),
+            ),
+          ),
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              minVerticalPadding: 12,
+              leading: const CircleAvatar(
+                child: Icon(Icons.handshake_outlined),
+              ),
+              title: Text(
+                'Debt & Loans',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              subtitle: const Text('Track money owed to you or by you'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DebtsScreen()),
+              ),
             ),
           ),
         ],
@@ -128,7 +127,9 @@ class AccountsScreen extends ConsumerWidget {
   ) {
     final color = Color(account.colorValue);
     return Card(
+      margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: color.withValues(alpha: .15),
           child: Icon(IconHelper.getIcon(account.iconCode), color: color),

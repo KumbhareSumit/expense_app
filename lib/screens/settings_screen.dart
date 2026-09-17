@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../providers/settings_provider.dart';
 import '../providers/transaction_provider.dart';
@@ -12,8 +13,6 @@ import '../providers/account_provider.dart';
 import '../providers/goal_provider.dart';
 import '../providers/debt_provider.dart';
 import '../database/db_helper.dart';
-import '../models/category_model.dart';
-import '../models/transaction_model.dart';
 import 'categories_screen.dart';
 import 'budget_screen.dart';
 import 'accounts_screen.dart';
@@ -229,13 +228,18 @@ class SettingsScreen extends ConsumerWidget {
       final data = await DBHelper().exportAllData();
 
       final jsonString = jsonEncode(data);
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/expense_backup.json');
-      await file.writeAsString(jsonString);
+      final uri = await FilePicker.saveFile(
+        dialogTitle: 'Save expense tracker backup',
+        fileName: 'expense_backup.json',
+        bytes: Uint8List.fromList(utf8.encode(jsonString)),
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (uri == null) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Backup saved to: ${file.path}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backup saved successfully')),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Backup failed: $e')));
@@ -244,17 +248,14 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _restoreData(BuildContext context, WidgetRef ref) async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/expense_backup.json');
+      final files = await FilePicker.pickFiles(
+        dialogTitle: 'Choose expense tracker backup',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (files.isEmpty || files.single.path == null) return;
 
-      if (!await file.exists()) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No backup file found at the expected location.'),
-          ),
-        );
-        return;
-      }
+      final file = File(files.single.path!);
 
       final jsonString = await file.readAsString();
       final data = jsonDecode(jsonString) as Map<String, dynamic>;

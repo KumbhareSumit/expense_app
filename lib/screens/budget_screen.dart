@@ -9,6 +9,7 @@ import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../utils/app_theme.dart';
+import '../utils/icon_helper.dart';
 
 class BudgetScreen extends ConsumerStatefulWidget {
   const BudgetScreen({super.key});
@@ -210,7 +211,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                   backgroundColor: Color(category.colorValue)
                       .withValues(alpha: .15),
                   child: Icon(
-                    IconData(category.iconCode, fontFamily: 'MaterialIcons'),
+                    IconHelper.getIcon(category.iconCode),
                     color: Color(category.colorValue),
                   ),
                 ),

@@ -26,7 +26,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'expense_tracker.db');
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
       onConfigure: (db) async {
@@ -102,6 +102,14 @@ class DBHelper {
     if (oldVersion < 3) {
       await _ensureBankAccount(db);
     }
+    if (oldVersion < 4) {
+      await db.execute(
+        "UPDATE categories SET type = 'investment' WHERE name = 'Investment' AND isCustom = 0",
+      );
+      await db.execute(
+        "UPDATE transactions SET type = 'investment' WHERE categoryId IN (SELECT id FROM categories WHERE name = 'Investment' AND isCustom = 0)",
+      );
+    }
   }
 
   Future<void> _createFeatureTables(Database db) async {
@@ -143,7 +151,9 @@ class DBHelper {
   Future<void> _ensureBankAccount(Database db) async {
     final bankCount =
         Sqflite.firstIntValue(
-          await db.rawQuery("SELECT COUNT(*) FROM accounts WHERE type = 'bank'"),
+          await db.rawQuery(
+            "SELECT COUNT(*) FROM accounts WHERE type = 'bank'",
+          ),
         ) ??
         0;
     if (bankCount == 0) {
@@ -205,7 +215,7 @@ class DBHelper {
         name: 'Investment',
         iconCode: 58941,
         colorValue: 0xFF009688,
-        type: 'income',
+        type: 'investment',
         isCustom: false,
       ),
     ];
