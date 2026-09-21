@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../models/account_model.dart';
 import '../providers/account_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/icon_helper.dart';
+import '../widgets/fintech_widgets.dart';
 import 'debts_screen.dart';
 import 'goals_screen.dart';
 
@@ -16,104 +18,126 @@ class AccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accountState = ref.watch(accountProvider);
     final currency = ref.watch(settingsProvider).currencySymbol;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Accounts & More')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: FintechColors.background,
+      appBar: AppBar(
+        backgroundColor: FintechColors.background,
+        elevation: 0,
+        title: const Text(
+          'Accounts & More',
+          style: TextStyle(
+            color: FintechColors.primaryText,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      body: Stack(
         children: [
-          Row(
+          ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
             children: [
-              Expanded(
-                child: Text(
-                  'Your accounts',
-                  style: Theme.of(context).textTheme.titleLarge,
+              // 1. Accounts Section Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Your accounts',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: FintechColors.primaryText,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _showAccountDialog(context, ref),
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: FintechColors.accent, size: 22),
+                    tooltip: 'Add account',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // 2. Accounts List
+              if (accountState.accounts.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: FintechColors.cardSurface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: FintechColors.cardBorder, width: 1),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Create an account to track Cash, Bank, Card, or Wallet balances.',
+                      style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              else
+                ...accountState.accounts.map(
+                  (account) => _accountCard(
+                    context,
+                    ref,
+                    account,
+                    accountState.balances[account.id] ?? account.openingBalance,
+                    currency,
+                  ),
+                ),
+              const SizedBox(height: 24),
+
+              // 3. Planning Section
+              const Text(
+                'Planning',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: FintechColors.primaryText,
                 ),
               ),
-              IconButton(
-                onPressed: () => _showAccountDialog(context, ref),
-                icon: const Icon(Icons.add_circle_outline),
-                tooltip: 'Add account',
+              const SizedBox(height: 12),
+
+              _planningCard(
+                context,
+                icon: Icons.flag_rounded,
+                iconColor: const Color(0xFF3EA8FF),
+                title: 'Savings Goals',
+                subtitle: 'Track money saved for something important',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GoalsScreen()),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              _planningCard(
+                context,
+                icon: Icons.handshake_rounded,
+                iconColor: const Color(0xFFFFB020),
+                title: 'Debt & Loans',
+                subtitle: 'Track money owed to you or by you',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DebtsScreen()),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          if (accountState.accounts.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Create an account to track Cash, Bank, Card, or Wallet balances.',
-                ),
-              ),
-            )
-          else
-            ...accountState.accounts.map(
-              (account) => _accountCard(
-                context,
-                ref,
-                account,
-                accountState.balances[account.id] ?? account.openingBalance,
-                currency,
-              ),
-            ),
-          const SizedBox(height: 24),
-          Text('Planning', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              minVerticalPadding: 12,
-              leading: const CircleAvatar(child: Icon(Icons.flag_outlined)),
-              title: Text(
-                'Savings Goals',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              subtitle: const Text(
-                'Track money saved for something important',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const GoalsScreen()),
-              ),
-            ),
-          ),
-          Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              minVerticalPadding: 12,
-              leading: const CircleAvatar(
-                child: Icon(Icons.handshake_outlined),
-              ),
-              title: Text(
-                'Debt & Loans',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              subtitle: const Text('Track money owed to you or by you'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DebtsScreen()),
-              ),
+
+          // Pinned bottom primary action button
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: PrimaryBottomButton(
+              label: 'Transfer Between Accounts',
+              icon: Icons.swap_horiz_rounded,
+              onPressed: () => _showTransferDialog(context, ref, accountState.accounts),
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            _showTransferDialog(context, ref, accountState.accounts),
-        icon: const Icon(Icons.swap_horiz),
-        label: const Text('Transfer'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        extendedPadding: const EdgeInsets.symmetric(horizontal: 18),
       ),
     );
   }
@@ -126,29 +150,87 @@ class AccountsScreen extends ConsumerWidget {
     String currency,
   ) {
     final color = Color(account.colorValue);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    final formattedBalance = NumberFormat('#,##0.00').format(balance.abs());
+    final isNegative = balance < 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: FintechColors.cardSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: FintechColors.cardBorder, width: 1),
+      ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: .15),
-          child: Icon(IconHelper.getIcon(account.iconCode), color: color),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: CategoryIcon(
+          icon: IconHelper.getIcon(account.iconCode),
+          color: color,
         ),
         title: Text(
           account.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: FintechColors.primaryText,
+          ),
         ),
-        subtitle: Text(account.type.toUpperCase()),
+        subtitle: Text(
+          account.type.toUpperCase(),
+          style: const TextStyle(
+            color: FintechColors.mutedText,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         trailing: Text(
-          '$currency${balance.toStringAsFixed(2)}',
+          '${isNegative ? '-' : ''}$currency$formattedBalance',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: balance >= 0
-                ? context.moneyColors.income
-                : context.moneyColors.expense,
+            fontWeight: FontWeight.w800,
+            fontSize: 15,
+            color: isNegative ? FintechColors.expense : FintechColors.primaryText,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
         onLongPress: () => _confirmDelete(context, ref, account),
+      ),
+    );
+  }
+
+  Widget _planningCard(
+    BuildContext context, {
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: FintechColors.cardSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: FintechColors.cardBorder, width: 1),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CategoryIcon(icon: icon, color: iconColor),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: FintechColors.primaryText,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(
+            color: FintechColors.mutedText,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        trailing: const Icon(Icons.chevron_right_rounded, color: FintechColors.mutedText, size: 20),
+        onTap: onTap,
       ),
     );
   }
@@ -161,33 +243,34 @@ class AccountsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Add account'),
+          title: const Text('Add Account'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: name,
+                style: const TextStyle(color: FintechColors.primaryText),
                 decoration: const InputDecoration(labelText: 'Account name'),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: type,
+                dropdownColor: FintechColors.cardSurface,
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: const [
-                  DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                  DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                  DropdownMenuItem(value: 'card', child: Text('Credit Card')),
-                  DropdownMenuItem(value: 'wallet', child: Text('Wallet')),
-                  DropdownMenuItem(value: 'other', child: Text('Other')),
+                  DropdownMenuItem(value: 'cash', child: Text('Cash', style: TextStyle(color: FintechColors.primaryText))),
+                  DropdownMenuItem(value: 'bank', child: Text('Bank', style: TextStyle(color: FintechColors.primaryText))),
+                  DropdownMenuItem(value: 'card', child: Text('Credit Card', style: TextStyle(color: FintechColors.primaryText))),
+                  DropdownMenuItem(value: 'wallet', child: Text('Wallet', style: TextStyle(color: FintechColors.primaryText))),
+                  DropdownMenuItem(value: 'other', child: Text('Other', style: TextStyle(color: FintechColors.primaryText))),
                 ],
                 onChanged: (value) => setState(() => type = value ?? type),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: opening,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: FintechColors.primaryText),
                 decoration: const InputDecoration(labelText: 'Opening balance'),
               ),
             ],
@@ -195,20 +278,18 @@ class AccountsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
             ),
             FilledButton(
               onPressed: () {
                 final amount = double.tryParse(opening.text) ?? 0;
                 if (name.text.trim().isEmpty) return;
-                ref
-                    .read(accountProvider.notifier)
-                    .addAccount(
+                ref.read(accountProvider.notifier).addAccount(
                       AccountModel(
                         name: name.text.trim(),
                         type: type,
                         openingBalance: amount,
-                        colorValue: Colors.teal.value,
+                        colorValue: const Color(0xFF3EE6B0).toARGB32(),
                         iconCode: Icons.account_balance_wallet.codePoint,
                       ),
                     );
@@ -242,35 +323,44 @@ class AccountsScreen extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Transfer money'),
+          title: const Text('Transfer Money'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<int>(
                 initialValue: from,
+                dropdownColor: FintechColors.cardSurface,
                 decoration: const InputDecoration(labelText: 'From account'),
                 items: accounts
                     .map(
-                      (a) => DropdownMenuItem(value: a.id, child: Text(a.name)),
+                      (a) => DropdownMenuItem(
+                        value: a.id,
+                        child: Text(a.name, style: const TextStyle(color: FintechColors.primaryText)),
+                      ),
                     )
                     .toList(),
                 onChanged: (value) => setState(() => from = value!),
               ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: to,
+                dropdownColor: FintechColors.cardSurface,
                 decoration: const InputDecoration(labelText: 'To account'),
                 items: accounts
                     .map(
-                      (a) => DropdownMenuItem(value: a.id, child: Text(a.name)),
+                      (a) => DropdownMenuItem(
+                        value: a.id,
+                        child: Text(a.name, style: const TextStyle(color: FintechColors.primaryText)),
+                      ),
                     )
                     .toList(),
                 onChanged: (value) => setState(() => to = value!),
               ),
+              const SizedBox(height: 12),
               TextField(
                 controller: amount,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: FintechColors.primaryText),
                 decoration: const InputDecoration(labelText: 'Amount'),
               ),
             ],
@@ -278,15 +368,13 @@ class AccountsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
             ),
             FilledButton(
               onPressed: () {
                 final value = double.tryParse(amount.text);
                 if (value == null || value <= 0 || from == to) return;
-                ref
-                    .read(accountProvider.notifier)
-                    .transfer(
+                ref.read(accountProvider.notifier).transfer(
                       fromAccountId: from,
                       toAccountId: to,
                       amount: value,
@@ -310,20 +398,21 @@ class AccountsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete account?'),
+        title: const Text('Delete Account?'),
         content: const Text(
           'Only delete accounts that no longer contain transactions.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
           ),
           FilledButton(
             onPressed: () {
               ref.read(accountProvider.notifier).deleteAccount(account.id!);
               Navigator.pop(dialogContext);
             },
+            style: FilledButton.styleFrom(backgroundColor: FintechColors.expense),
             child: const Text('Delete'),
           ),
         ],

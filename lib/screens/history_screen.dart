@@ -8,8 +8,9 @@ import '../providers/settings_provider.dart';
 import '../models/transaction_model.dart';
 import '../models/category_model.dart';
 import '../utils/icon_helper.dart';
-import 'add_transaction_screen.dart';
 import '../utils/app_theme.dart';
+import '../widgets/fintech_widgets.dart';
+import 'add_transaction_screen.dart';
 
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
@@ -35,6 +36,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final transactions = ref.watch(transactionProvider);
     final categories = ref.watch(categoryProvider);
     final settings = ref.watch(settingsProvider);
+    final currency = settings.currencySymbol;
 
     final filteredTransactions = transactions.where((t) {
       final matchesSearch = t.note.toLowerCase().contains(
@@ -60,116 +62,175 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ..sort((a, b) => b.compareTo(a));
 
     return Scaffold(
+      backgroundColor: FintechColors.background,
       appBar: AppBar(
-        title: const Text('Transaction History'),
+        backgroundColor: FintechColors.background,
+        elevation: 0,
+        title: const Text(
+          'History',
+          style: TextStyle(
+            color: FintechColors.primaryText,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            icon: const Icon(Icons.filter_list_rounded, color: FintechColors.mutedText),
             onPressed: () => _showFilterDialog(context, categories),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
+          // 1. Search Bar
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search transactions...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Container(
+              height: 46,
+              decoration: BoxDecoration(
+                color: FintechColors.cardSurface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: FintechColors.cardBorder, width: 1),
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
+              child: TextField(
+                controller: _searchController,
+                style: const TextStyle(color: FintechColors.primaryText, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search transactions...',
+                  hintStyle: const TextStyle(color: FintechColors.mutedText, fontSize: 13),
+                  prefixIcon: const Icon(Icons.search_rounded, color: FintechColors.mutedText, size: 20),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, color: FintechColors.mutedText, size: 18),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+              ),
             ),
           ),
+
+          // 2. Active Filter Tags
           if (_selectedType != null || _selectedCategoryId != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Wrap(
-                spacing: 8,
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Row(
                 children: [
                   if (_selectedType != null)
-                    Chip(
-                      label: Text('Type: ${_selectedType!.toUpperCase()}'),
-                      onDeleted: () => setState(() => _selectedType = null),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: Chip(
+                        backgroundColor: const Color(0xFF12382F),
+                        side: const BorderSide(color: FintechColors.accent, width: 1),
+                        label: Text(
+                          _selectedType!.toUpperCase(),
+                          style: const TextStyle(color: FintechColors.accent, fontSize: 11, fontWeight: FontWeight.w700),
+                        ),
+                        deleteIcon: const Icon(Icons.close_rounded, size: 14, color: FintechColors.accent),
+                        onDeleted: () => setState(() => _selectedType = null),
+                      ),
                     ),
                   if (_selectedCategoryId != null)
                     Chip(
+                      backgroundColor: const Color(0xFF12382F),
+                      side: const BorderSide(color: FintechColors.accent, width: 1),
                       label: Text(
-                        'Category: ${categories.firstWhere((c) => c.id == _selectedCategoryId).name}',
+                        categories.firstWhere((c) => c.id == _selectedCategoryId).name,
+                        style: const TextStyle(color: FintechColors.accent, fontSize: 11, fontWeight: FontWeight.w700),
                       ),
-                      onDeleted: () =>
-                          setState(() => _selectedCategoryId = null),
+                      deleteIcon: const Icon(Icons.close_rounded, size: 14, color: FintechColors.accent),
+                      onDeleted: () => setState(() => _selectedCategoryId = null),
                     ),
                 ],
               ),
             ),
+
+          // 3. Transactions Grouped by Date
           Expanded(
             child: sortedDates.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.receipt_long_outlined,
-                          size: 72,
-                          color: context.moneyColors.muted.withValues(
-                            alpha: .55,
-                          ),
+                          size: 64,
+                          color: FintechColors.mutedText,
                         ),
                         const SizedBox(height: 16),
-                        const Text('No transactions found'),
-                        const SizedBox(height: 8),
-                        Text(
+                        const Text(
+                          'No transactions found',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: FintechColors.primaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
                           'Your saved income and expenses will appear here.',
-                          style: TextStyle(color: context.moneyColors.muted),
+                          style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
                         ),
                       ],
                     ),
                   )
                 : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
                     itemCount: sortedDates.length,
                     itemBuilder: (context, index) {
                       final dateStr = sortedDates[index];
                       final date = DateTime.parse(dateStr);
                       final items = groupedTransactions[dateStr]!;
 
+                      // Calculate net for the day
+                      double dailyNet = 0;
+                      for (var item in items) {
+                        if (item.type == 'income') {
+                          dailyNet += item.amount;
+                        } else if (item.type == 'expense') {
+                          dailyNet -= item.amount;
+                        }
+                      }
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                            child: Text(
-                              _formatHeaderDate(date),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: context.moneyColors.muted,
-                              ),
-                            ),
+                          DateHeader(
+                            dateTitle: _formatHeaderDate(date),
+                            netAmount: dailyNet,
+                            currency: currency,
                           ),
-                          ...items.map(
-                            (t) => _buildTransactionItem(
-                              t,
-                              categories,
-                              settings.currencySymbol,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: FintechColors.cardSurface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: FintechColors.cardBorder, width: 1),
+                            ),
+                            child: Column(
+                              children: items.map(
+                                (t) => _buildTransactionItem(
+                                  t,
+                                  categories,
+                                  currency,
+                                ),
+                              ).toList(),
                             ),
                           ),
                         ],
@@ -190,7 +251,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     if (checkDate == today) return 'Today';
     if (checkDate == yesterday) return 'Yesterday';
-    return DateFormat('EEE, dd MMM yyyy').format(date);
+    return DateFormat('EEE, d MMM').format(date);
   }
 
   Widget _buildTransactionItem(
@@ -203,41 +264,41 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       orElse: () => CategoryModel(
         name: 'Unknown',
         iconCode: Icons.help.codePoint,
-        colorValue: Colors.grey.value,
-        type: 'expense',
+        colorValue: Colors.grey.toARGB32(),
+        type: t.type,
       ),
     );
-    final isIncome = t.type == 'income';
-    final isInvestment = t.type == 'investment';
+
+    final title = category.name.isNotEmpty ? category.name : (t.note.isNotEmpty ? t.note : 'Transaction');
+    final subtitle = t.note.isNotEmpty ? t.note : DateFormat('hh:mm a').format(t.date);
 
     return Dismissible(
       key: Key(t.id.toString()),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: context.moneyColors.expense,
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
+        padding: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: FintechColors.expense.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.delete_outline_rounded, color: FintechColors.expense),
       ),
       confirmDismiss: (direction) async {
         return await showDialog(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Delete Transaction'),
-            content: const Text(
-              'Are you sure you want to delete this transaction?',
-            ),
+            content: const Text('Are you sure you want to delete this transaction?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
               ),
-              TextButton(
+              FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: Text(
-                  'Delete',
-                  style: TextStyle(color: context.moneyColors.expense),
-                ),
+                style: FilledButton.styleFrom(backgroundColor: FintechColors.expense),
+                child: const Text('Delete'),
               ),
             ],
           ),
@@ -245,35 +306,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       },
       onDismissed: (direction) {
         ref.read(transactionProvider.notifier).deleteTransaction(t.id!);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Transaction deleted')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaction deleted')),
+        );
       },
-      child: ListTile(
+      child: TransactionTile(
+        title: title,
+        subtitle: subtitle,
+        amount: t.amount,
+        type: t.type,
+        categoryColor: Color(category.colorValue),
+        icon: IconHelper.getIcon(category.iconCode),
+        currency: currency,
         onTap: () => _editTransaction(t),
-        leading: CircleAvatar(
-          backgroundColor: Color(category.colorValue).withOpacity(0.2),
-          child: Icon(
-            IconHelper.getIcon(category.iconCode),
-            color: Color(category.colorValue),
-          ),
-        ),
-        title: Text(category.name),
-        subtitle: t.note.isNotEmpty ? Text(t.note) : null,
-        trailing: Text(
-          '${isIncome
-              ? '+'
-              : isInvestment
-              ? ''
-              : '-'}$currency${t.amount.toStringAsFixed(2)}',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isIncome
-                ? context.moneyColors.income
-                : isInvestment
-                ? Colors.teal
-                : context.moneyColors.expense,
-          ),
-        ),
       ),
     );
   }
@@ -282,6 +327,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (_) => AddTransactionScreen(transaction: transaction),
     );
   }
@@ -289,8 +335,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   void _showFilterDialog(BuildContext context, List<CategoryModel> categories) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: FintechColors.cardSurface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        side: BorderSide(color: FintechColors.cardBorder, width: 1),
       ),
       builder: (context) {
         return StatefulBuilder(
@@ -303,19 +351,29 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 children: [
                   const Text(
                     'Filter Transactions',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: FintechColors.primaryText,
+                    ),
                   ),
-                  const SizedBox(height: 20),
-                  const Text('Type'),
+                  const SizedBox(height: 16),
+                  const Text('Type', style: TextStyle(color: FintechColors.mutedText, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       FilterChip(
                         label: const Text('Income'),
                         selected: _selectedType == 'income',
+                        selectedColor: const Color(0xFF12382F),
+                        checkmarkColor: FintechColors.accent,
+                        labelStyle: TextStyle(
+                          color: _selectedType == 'income' ? FintechColors.accent : FintechColors.primaryText,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
                         onSelected: (val) {
-                          setModalState(
-                            () => _selectedType = val ? 'income' : null,
-                          );
+                          setModalState(() => _selectedType = val ? 'income' : null);
                           setState(() {});
                         },
                       ),
@@ -323,54 +381,58 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       FilterChip(
                         label: const Text('Expense'),
                         selected: _selectedType == 'expense',
+                        selectedColor: const Color(0xFF2E1815),
+                        checkmarkColor: FintechColors.expense,
+                        labelStyle: TextStyle(
+                          color: _selectedType == 'expense' ? FintechColors.expense : FintechColors.primaryText,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
                         onSelected: (val) {
-                          setModalState(
-                            () => _selectedType = val ? 'expense' : null,
-                          );
-                          setState(() {});
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      FilterChip(
-                        label: const Text('Investment'),
-                        selected: _selectedType == 'investment',
-                        onSelected: (val) {
-                          setModalState(
-                            () => _selectedType = val ? 'investment' : null,
-                          );
+                          setModalState(() => _selectedType = val ? 'expense' : null);
                           setState(() {});
                         },
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Text('Category'),
-                  DropdownButton<int>(
-                    isExpanded: true,
-                    value: _selectedCategoryId,
-                    hint: const Text('Select Category'),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('All Categories'),
-                      ),
-                      ...categories.map(
-                        (c) =>
-                            DropdownMenuItem(value: c.id, child: Text(c.name)),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      setModalState(() => _selectedCategoryId = val);
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Apply'),
+                  const Text('Category', style: TextStyle(color: FintechColors.mutedText, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF101715),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: FintechColors.cardBorder, width: 1),
                     ),
+                    child: DropdownButton<int>(
+                      isExpanded: true,
+                      underline: const SizedBox.shrink(),
+                      dropdownColor: FintechColors.cardSurface,
+                      value: _selectedCategoryId,
+                      hint: const Text('All Categories', style: TextStyle(color: FintechColors.mutedText, fontSize: 13)),
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('All Categories', style: TextStyle(color: FintechColors.primaryText, fontSize: 13)),
+                        ),
+                        ...categories.map(
+                          (c) => DropdownMenuItem(
+                            value: c.id,
+                            child: Text(c.name, style: const TextStyle(color: FintechColors.primaryText, fontSize: 13)),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setModalState(() => _selectedCategoryId = val);
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  PrimaryBottomButton(
+                    label: 'Apply Filters',
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),

@@ -10,6 +10,7 @@ import '../providers/settings_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/icon_helper.dart';
+import '../widgets/fintech_widgets.dart';
 
 class BudgetScreen extends ConsumerStatefulWidget {
   const BudgetScreen({super.key});
@@ -30,7 +31,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
         .toList();
     final transactions = ref.watch(transactionProvider);
     final currency = ref.watch(settingsProvider).currencySymbol;
-    final moneyColors = context.moneyColors;
+
     final matchingBudgets = budgets.where(
       (item) =>
           item.month == _selectedDate.month &&
@@ -38,6 +39,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
           item.categoryId == null,
     );
     final budget = matchingBudgets.isEmpty ? null : matchingBudgets.first;
+
     final spent = transactions
         .where(
           (item) =>
@@ -46,14 +48,14 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
               item.date.year == _selectedDate.year,
         )
         .fold<double>(0, (sum, item) => sum + item.amount);
+
     final progress = budget == null || budget.limitAmount <= 0
         ? 0.0
         : spent / budget.limitAmount;
-    final color = progress >= 1
-        ? moneyColors.expense
-        : progress >= .8
-        ? moneyColors.warning
-        : moneyColors.income;
+
+    final remaining = budget == null ? 0.0 : (budget.limitAmount - spent);
+    final isExceeded = remaining < 0;
+
     final categoryBudgets = budgets
         .where(
           (item) =>
@@ -64,202 +66,269 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Monthly Budget')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                onPressed: () => setState(
-                  () => _selectedDate = DateTime(
-                    _selectedDate.year,
-                    _selectedDate.month - 1,
-                  ),
-                ),
-                icon: const Icon(Icons.chevron_left),
-              ),
-              Text(
-                DateFormat('MMMM yyyy').format(_selectedDate),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              IconButton(
-                onPressed: () => setState(
-                  () => _selectedDate = DateTime(
-                    _selectedDate.year,
-                    _selectedDate.month + 1,
-                  ),
-                ),
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
+      backgroundColor: FintechColors.background,
+      appBar: AppBar(
+        backgroundColor: FintechColors.background,
+        elevation: 0,
+        title: const Text(
+          'Monthly Budget',
+          style: TextStyle(
+            color: FintechColors.primaryText,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
           ),
-          if (budget != null)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+        ),
+      ),
+      body: Stack(
+        children: [
+          ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+            children: [
+              // 1. Month Switcher
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: FintechColors.cardSurface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: FintechColors.cardBorder, width: 1),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '$currency${budget.limitAmount.toStringAsFixed(2)} limit',
-                      style: Theme.of(context).textTheme.titleLarge,
+                    IconButton(
+                      onPressed: () => setState(
+                        () => _selectedDate = DateTime(
+                          _selectedDate.year,
+                          _selectedDate.month - 1,
+                        ),
+                      ),
+                      icon: const Icon(Icons.chevron_left_rounded, color: FintechColors.mutedText),
                     ),
-                    const SizedBox(height: 12),
                     Text(
-                      '$currency${spent.toStringAsFixed(2)} spent',
-                      style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.bold,
+                      DateFormat('MMMM yyyy').format(_selectedDate),
+                      style: const TextStyle(
+                        color: FintechColors.primaryText,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: progress.clamp(0, 1)),
-                      duration: const Duration(milliseconds: 450),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, animatedProgress, child) =>
-                          LinearProgressIndicator(
-                            value: animatedProgress,
-                            color: color,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _usageLabel(progress),
-                      style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.w600,
+                    IconButton(
+                      onPressed: () => setState(
+                        () => _selectedDate = DateTime(
+                          _selectedDate.year,
+                          _selectedDate.month + 1,
+                        ),
                       ),
+                      icon: const Icon(Icons.chevron_right_rounded, color: FintechColors.mutedText),
                     ),
                   ],
                 ),
               ),
-            ),
-          const SizedBox(height: 24),
-          Text(
-            'Category budgets',
-            style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
-          ),
-          const SizedBox(height: 8),
-          if (categoryBudgets.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'No category budgets yet. Add limits for Food, Transport, Shopping, and more.',
+              const SizedBox(height: 16),
+
+              // 2. Main Budget Overview Card
+              if (budget != null)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: FintechColors.cardSurface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: FintechColors.cardBorder, width: 1),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isExceeded ? 'Over budget' : 'Remaining budget',
+                            style: const TextStyle(
+                              color: FintechColors.mutedText,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => _showBudgetDialog(null, budget, categories),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              child: Text(
+                                'Edit Limit',
+                                style: TextStyle(
+                                  color: FintechColors.accent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '$currency${NumberFormat('#,##0.00').format(remaining.abs())} ${isExceeded ? 'over' : 'left'}',
+                        style: TextStyle(
+                          color: isExceeded ? FintechColors.expense : FintechColors.primaryText,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress.clamp(0.0, 1.0),
+                          backgroundColor: const Color(0xFF1F2A27),
+                          color: isExceeded || progress >= 0.9
+                              ? FintechColors.expense
+                              : FintechColors.accent,
+                          minHeight: 6,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '$currency${NumberFormat('#,##0').format(spent)} spent',
+                            style: const TextStyle(
+                              color: FintechColors.mutedText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            '${(progress * 100).toInt()}% of $currency${NumberFormat('#,##0').format(budget.limitAmount)}',
+                            style: TextStyle(
+                              color: isExceeded ? FintechColors.expense : FintechColors.accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: FintechColors.cardSurface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: FintechColors.cardBorder, width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.account_balance_wallet_outlined, size: 42, color: FintechColors.mutedText),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'No overall limit set for this month',
+                        style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => _showBudgetDialog(null, budget, categories),
+                        icon: const Icon(Icons.add_rounded, size: 16, color: FintechColors.accent),
+                        label: const Text('Set Monthly Limit', style: TextStyle(color: FintechColors.accent, fontWeight: FontWeight.w700)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: FintechColors.accent, width: 1),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              const SizedBox(height: 24),
+
+              // 3. Category Budgets Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Category budgets',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: FintechColors.primaryText,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _showBudgetDialog(null, null, categories),
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: FintechColors.accent, size: 20),
+                    tooltip: 'Add category budget',
+                  ),
+                ],
               ),
-            )
-          else
-            ...categoryBudgets.map((categoryBudget) {
-              final category = categories
-                  .where((item) => item.id == categoryBudget.categoryId)
-                  .firstOrNull;
-              if (category == null) return const SizedBox.shrink();
-              final categorySpent = transactions
-                  .where(
-                    (item) =>
-                        item.type == 'expense' &&
-                        item.categoryId == category.id &&
-                        item.date.month == _selectedDate.month &&
-                        item.date.year == _selectedDate.year,
-                  )
-                  .fold<double>(0, (sum, item) => sum + item.amount);
-              return _buildCategoryBudgetCard(
-                categoryBudget,
-                category,
-                categorySpent,
-                currency,
-              );
-            }),
+              const SizedBox(height: 10),
+
+              // 4. Category Budget Cards
+              if (categoryBudgets.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: FintechColors.cardSurface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: FintechColors.cardBorder, width: 1),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'No category budgets yet. Add limits for Food, Transport, etc.',
+                      style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              else
+                ...categoryBudgets.map((categoryBudget) {
+                  final category = categories
+                      .where((item) => item.id == categoryBudget.categoryId)
+                      .firstOrNull;
+                  if (category == null) return const SizedBox.shrink();
+                  final categorySpent = transactions
+                      .where(
+                        (item) =>
+                            item.type == 'expense' &&
+                            item.categoryId == category.id &&
+                            item.date.month == _selectedDate.month &&
+                            item.date.year == _selectedDate.year,
+                      )
+                      .fold<double>(0, (sum, item) => sum + item.amount);
+
+                  return BudgetCategoryCard(
+                    name: category.name,
+                    spent: categorySpent,
+                    limit: categoryBudget.limitAmount,
+                    color: Color(category.colorValue),
+                    icon: IconHelper.getIcon(category.iconCode),
+                    currency: currency,
+                    onEdit: () => _showBudgetDialog(
+                      category.id,
+                      categoryBudget,
+                      categories,
+                    ),
+                  );
+                }),
+            ],
+          ),
+
+          // Pinned bottom primary action button
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: PrimaryBottomButton(
+              label: budget == null ? 'Set Monthly Budget' : 'Update Budget',
+              icon: Icons.tune_rounded,
+              onPressed: () => _showBudgetDialog(null, budget, categories),
+            ),
+          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showBudgetDialog(null, budget, categories),
-        icon: const Icon(Icons.edit),
-        label: Text(budget == null ? 'Set budget' : 'Update budget'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        extendedPadding: const EdgeInsets.symmetric(horizontal: 18),
-      ),
     );
-  }
-
-  Widget _buildCategoryBudgetCard(
-    BudgetModel budget,
-    CategoryModel category,
-    double spent,
-    String currency,
-  ) {
-    final progress = budget.limitAmount <= 0 ? 0.0 : spent / budget.limitAmount;
-    final color = progress >= 1
-        ? context.moneyColors.expense
-        : progress >= .8
-        ? context.moneyColors.warning
-        : context.moneyColors.income;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Color(category.colorValue)
-                      .withValues(alpha: .15),
-                  child: Icon(
-                    IconHelper.getIcon(category.iconCode),
-                    color: Color(category.colorValue),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    category.name,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Edit budget',
-                  onPressed: () => _showBudgetDialog(
-                    category.id,
-                    budget,
-                    ref
-                        .read(categoryProvider)
-                        .where((item) => item.type == 'expense')
-                        .toList(),
-                  ),
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Delete budget',
-                  onPressed: () => ref
-                      .read(budgetProvider.notifier)
-                      .deleteBudget(budget.id!),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$currency${spent.toStringAsFixed(2)} spent of $currency${budget.limitAmount.toStringAsFixed(2)}',
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(value: progress.clamp(0, 1), color: color),
-            const SizedBox(height: 6),
-            Text(_usageLabel(progress), style: TextStyle(color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _usageLabel(double progress) {
-    if (progress >= 1) return 'Over budget';
-    return '${(progress * 100).toStringAsFixed(0)}% used';
   }
 
   void _showBudgetDialog(
@@ -268,9 +337,10 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
     List<CategoryModel> categories,
   ) {
     final controller = TextEditingController(
-      text: existing?.limitAmount.toString() ?? '',
+      text: existing != null ? existing.limitAmount.toStringAsFixed(0) : '',
     );
     var selectedCategoryId = existing?.categoryId ?? initialCategoryId;
+
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -282,16 +352,17 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
           children: [
             DropdownButtonFormField<int?>(
               initialValue: selectedCategoryId,
+              dropdownColor: FintechColors.cardSurface,
               decoration: const InputDecoration(labelText: 'Budget for'),
               items: [
                 const DropdownMenuItem<int?>(
                   value: null,
-                  child: Text('Overall monthly budget'),
+                  child: Text('Overall monthly budget', style: TextStyle(color: FintechColors.primaryText)),
                 ),
                 ...categories.map(
                   (category) => DropdownMenuItem<int?>(
                     value: category.id,
-                    child: Text(category.name),
+                    child: Text(category.name, style: const TextStyle(color: FintechColors.primaryText)),
                   ),
                 ),
               ],
@@ -300,9 +371,8 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(color: FintechColors.primaryText),
               decoration: const InputDecoration(labelText: 'Limit amount'),
             ),
           ],
@@ -310,8 +380,16 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
           ),
+          if (existing != null && existing.id != null)
+            TextButton(
+              onPressed: () {
+                ref.read(budgetProvider.notifier).deleteBudget(existing.id!);
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Delete', style: TextStyle(color: FintechColors.expense)),
+            ),
           FilledButton(
             onPressed: () {
               final amount = double.tryParse(controller.text);

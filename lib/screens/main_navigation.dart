@@ -5,6 +5,7 @@ import 'accounts_screen.dart';
 import 'budget_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
+import '../utils/app_theme.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -27,38 +28,49 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: FintechColors.background,
       body: _screens[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _selectedIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Home',
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: FintechColors.navBg,
+          border: Border(
+            top: BorderSide(color: FintechColors.navBorder, width: 1.0),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.pie_chart_outline),
-            selectedIcon: Icon(Icons.pie_chart),
-            label: 'Analysis',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history),
-            selectedIcon: Icon(Icons.history_edu),
-            label: 'History',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Budget',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_outlined),
-            selectedIcon: Icon(Icons.account_balance),
-            label: 'Accounts',
-          ),
-        ],
+        ),
+        child: NavigationBar(
+          backgroundColor: FintechColors.navBg,
+          elevation: 0,
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: (index) =>
+              setState(() => _selectedIndex = index),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.grid_view_rounded),
+              selectedIcon: Icon(Icons.grid_view_rounded),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.pie_chart_rounded),
+              selectedIcon: Icon(Icons.pie_chart_rounded),
+              label: 'Analysis',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.history_rounded),
+              selectedIcon: Icon(Icons.history_rounded),
+              label: 'History',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_rounded),
+              selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+              label: 'Budget',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.credit_card_rounded),
+              selectedIcon: Icon(Icons.credit_card_rounded),
+              label: 'Accounts',
+            ),
+          ],
+        ),
       ),
     );
   }
