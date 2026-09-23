@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'analysis_screen.dart';
@@ -5,6 +6,7 @@ import 'accounts_screen.dart';
 import 'budget_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
+import 'web/web_crm_layout.dart';
 import '../utils/app_theme.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -27,18 +29,28 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Desktop Web CRM layout (when running in Web browser on desktop screen >= 900px)
+    if (kIsWeb && screenWidth >= 900) {
+      return const WebCrmLayout();
+    }
+
+    final fintech = context.fintech;
+
+    // Android / Mobile phone view (100% untouched)
     return Scaffold(
-      backgroundColor: FintechColors.background,
+      backgroundColor: fintech.background,
       body: _screens[_selectedIndex],
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: FintechColors.navBg,
+        decoration: BoxDecoration(
+          color: fintech.navBg,
           border: Border(
-            top: BorderSide(color: FintechColors.navBorder, width: 1.0),
+            top: BorderSide(color: fintech.navBorder, width: 1.0),
           ),
         ),
         child: NavigationBar(
-          backgroundColor: FintechColors.navBg,
+          backgroundColor: fintech.navBg,
           elevation: 0,
           selectedIndex: _selectedIndex,
           onDestinationSelected: (index) =>

@@ -23,6 +23,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  FintechThemeColors get fintech => context.fintech;
   String _selectedPeriod = 'Monthly';
   DateTime _selectedDate = DateTime.now();
   final List<String> _periods = ['Daily', 'Weekly', 'Monthly', 'Yearly'];
@@ -79,11 +80,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
 
     final dateHeaderStr = DateFormat('EEEE, d MMM').format(now);
+    final fintech = context.fintech;
 
     return Scaffold(
-      backgroundColor: FintechColors.background,
+      backgroundColor: fintech.background,
       appBar: AppBar(
-        backgroundColor: FintechColors.background,
+        backgroundColor: fintech.background,
         elevation: 0,
         titleSpacing: 16,
         title: Column(
@@ -91,17 +93,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             Text(
               dateHeaderStr,
-              style: const TextStyle(
-                color: FintechColors.mutedText,
+              style: TextStyle(
+                color: fintech.mutedText,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 2),
-            const Text(
+            Text(
               'Dashboard',
               style: TextStyle(
-                color: FintechColors.primaryText,
+                color: fintech.primaryText,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
               ),
@@ -110,7 +112,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: FintechColors.mutedText),
+            icon: Icon(Icons.settings_outlined, color: fintech.mutedText),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -133,26 +135,52 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 2. Account Pills Row
+            // 2. Account Pills Row (auto-fills for 1-2 accounts, scrollable for 3+ so names never truncate)
             if (accountState.accounts.isNotEmpty) ...[
-              SizedBox(
-                height: 42,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: accountState.accounts.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final account = accountState.accounts[index];
-                    final accountBalance = accountState.balances[account.id] ?? account.openingBalance;
-                    return AccountPill(
-                      name: account.name,
-                      balance: accountBalance,
-                      color: Color(account.colorValue),
-                      currency: currency,
-                    );
-                  },
+              if (accountState.accounts.length <= 2)
+                Row(
+                  children: [
+                    for (int i = 0; i < accountState.accounts.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 10),
+                      Expanded(
+                        child: Builder(
+                          builder: (context) {
+                            final account = accountState.accounts[i];
+                            final accountBalance =
+                                accountState.balances[account.id] ?? account.openingBalance;
+                            return AccountPill(
+                              name: account.name,
+                              balance: accountBalance,
+                              color: Color(account.colorValue),
+                              currency: currency,
+                              isExpanded: true,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                )
+              else
+                SizedBox(
+                  height: 42,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: accountState.accounts.length,
+                    separatorBuilder: (context, index) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      final account = accountState.accounts[index];
+                      final accountBalance =
+                          accountState.balances[account.id] ?? account.openingBalance;
+                      return AccountPill(
+                        name: account.name,
+                        balance: accountBalance,
+                        color: Color(account.colorValue),
+                        currency: currency,
+                      );
+                    },
+                  ),
                 ),
-              ),
               const SizedBox(height: 16),
             ],
 
@@ -163,7 +191,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   child: StatCard(
                     title: 'Income',
                     amount: totalIncome,
-                    color: FintechColors.income,
+                    color: fintech.income,
                     icon: Icons.arrow_upward_rounded,
                     currency: currency,
                   ),
@@ -173,7 +201,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   child: StatCard(
                     title: 'Expense',
                     amount: totalExpense,
-                    color: FintechColors.expense,
+                    color: fintech.expense,
                     icon: Icons.arrow_downward_rounded,
                     currency: currency,
                   ),
@@ -209,24 +237,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Recent',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: FintechColors.primaryText,
+                    color: fintech.primaryText,
                   ),
                 ),
                 Text(
                   _selectedPeriod,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: FintechColors.mutedText,
+                    color: fintech.mutedText,
                   ),
                 ),
               ],
             ),
+
             const SizedBox(height: 12),
 
             _buildTransactionList(
@@ -245,26 +274,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildDebtsLoansCard(double owedToMe, double iOwe, String currency) {
+    final fintech = context.fintech;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.handshake_outlined, color: FintechColors.accent, size: 18),
-              SizedBox(width: 8),
+              Icon(Icons.handshake_outlined, color: fintech.accent, size: 18),
+              const SizedBox(width: 8),
               Text(
                 'Debts & Loans',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: FintechColors.primaryText,
+                  color: fintech.primaryText,
                 ),
               ),
             ],
@@ -276,40 +307,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Owed to me',
-                      style: TextStyle(fontSize: 12, color: FintechColors.mutedText),
+                      style: TextStyle(fontSize: 12, color: fintech.mutedText),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '$currency${owedToMe.toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: FintechColors.income,
+                        color: fintech.income,
                       ),
                     ),
                   ],
                 ),
               ),
-              Container(width: 1, height: 32, color: FintechColors.cardBorder),
+              Container(width: 1, height: 32, color: fintech.cardBorder),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'I Owe',
-                        style: TextStyle(fontSize: 12, color: FintechColors.mutedText),
+                        style: TextStyle(fontSize: 12, color: fintech.mutedText),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '$currency${iOwe.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: FintechColors.expense,
+                          color: fintech.expense,
                         ),
                       ),
                     ],
@@ -324,13 +355,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildPeriodSelector() {
+    final fintech = context.fintech;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       height: 38,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: Row(
         children: _periods.map((period) {
@@ -345,7 +379,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               child: Container(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF12382F) : Colors.transparent,
+                  color: isSelected
+                      ? (isDark ? const Color(0xFF12382F) : fintech.accent.withValues(alpha: 0.15))
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Text(
@@ -353,7 +389,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? FintechColors.accent : FintechColors.mutedText,
+                    color: isSelected ? fintech.accent : fintech.mutedText,
                   ),
                 ),
               ),
@@ -398,14 +434,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left_rounded, size: 22, color: FintechColors.mutedText),
+            icon: Icon(Icons.chevron_left_rounded, size: 22, color: fintech.mutedText),
             onPressed: () => _navigatePeriod(-1),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
@@ -420,15 +456,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.calendar_today_outlined, size: 13, color: FintechColors.accent),
+                    Icon(Icons.calendar_today_outlined, size: 13, color: fintech.accent),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: FintechColors.primaryText,
+                          color: fintech.primaryText,
                         ),
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
@@ -440,7 +476,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right_rounded, size: 22, color: FintechColors.mutedText),
+            icon: Icon(Icons.chevron_right_rounded, size: 22, color: fintech.mutedText),
             onPressed: () => _navigatePeriod(1),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
@@ -479,19 +515,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: FintechColors.accent,
-              onPrimary: Color(0xFF0C1110),
-              surface: FintechColors.cardSurface,
-              onSurface: FintechColors.primaryText,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -508,18 +531,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
         decoration: BoxDecoration(
-          color: FintechColors.cardSurface,
+          color: fintech.cardSurface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: FintechColors.cardBorder, width: 1),
+          border: Border.all(color: fintech.cardBorder, width: 1),
         ),
         child: Column(
           children: [
-            const Icon(Icons.receipt_long_outlined, size: 36, color: FintechColors.mutedText),
+            Icon(Icons.receipt_long_outlined, size: 36, color: fintech.mutedText),
             const SizedBox(height: 8),
             Text(
               'No transactions for this $_selectedPeriod'.toLowerCase(),
-              style: const TextStyle(
-                color: FintechColors.primaryText,
+              style: TextStyle(
+                color: fintech.primaryText,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -529,7 +552,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _selectedPeriod == 'Daily'
                   ? 'Use ‹ or › to view other days or add a transaction'
                   : 'Use ‹ or › to browse other dates',
-              style: const TextStyle(color: FintechColors.mutedText, fontSize: 12),
+              style: TextStyle(color: fintech.mutedText, fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ],
@@ -542,9 +565,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: Column(
         children: displayList.map((t) {
@@ -553,7 +576,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           final subtitle = t.note.isNotEmpty && category != null
               ? '${t.note} · ${DateFormat('d MMM').format(t.date)}'
               : DateFormat('d MMM, yyyy').format(t.date);
-          final catColor = category != null ? Color(category.colorValue) : FintechColors.accent;
+          final catColor = category != null ? Color(category.colorValue) : fintech.accent;
           final iconData = category != null ? IconHelper.getIcon(category.iconCode) : Icons.category;
 
           return TransactionTile(
@@ -625,6 +648,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _confirmDeleteTransaction(TransactionModel transaction) async {
+    final fintech = context.fintech;
+
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -633,11 +658,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
+            child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: FintechColors.expense),
+            style: FilledButton.styleFrom(backgroundColor: fintech.expense),
             child: const Text('Delete'),
           ),
         ],

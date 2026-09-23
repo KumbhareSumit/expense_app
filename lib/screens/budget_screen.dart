@@ -65,15 +65,17 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
         )
         .toList();
 
+    final fintech = context.fintech;
+
     return Scaffold(
-      backgroundColor: FintechColors.background,
+      backgroundColor: fintech.background,
       appBar: AppBar(
-        backgroundColor: FintechColors.background,
+        backgroundColor: fintech.background,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Monthly Budget',
           style: TextStyle(
-            color: FintechColors.primaryText,
+            color: fintech.primaryText,
             fontSize: 20,
             fontWeight: FontWeight.w800,
           ),
@@ -88,9 +90,9 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: FintechColors.cardSurface,
+                  color: fintech.cardSurface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: FintechColors.cardBorder, width: 1),
+                  border: Border.all(color: fintech.cardBorder, width: 1),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -102,12 +104,12 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                           _selectedDate.month - 1,
                         ),
                       ),
-                      icon: const Icon(Icons.chevron_left_rounded, color: FintechColors.mutedText),
+                      icon: Icon(Icons.chevron_left_rounded, color: fintech.mutedText),
                     ),
                     Text(
                       DateFormat('MMMM yyyy').format(_selectedDate),
-                      style: const TextStyle(
-                        color: FintechColors.primaryText,
+                      style: TextStyle(
+                        color: fintech.primaryText,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -119,7 +121,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                           _selectedDate.month + 1,
                         ),
                       ),
-                      icon: const Icon(Icons.chevron_right_rounded, color: FintechColors.mutedText),
+                      icon: Icon(Icons.chevron_right_rounded, color: fintech.mutedText),
                     ),
                   ],
                 ),
@@ -131,9 +133,9 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: FintechColors.cardSurface,
+                    color: fintech.cardSurface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: FintechColors.cardBorder, width: 1),
+                    border: Border.all(color: fintech.cardBorder, width: 1),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,20 +145,20 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                         children: [
                           Text(
                             isExceeded ? 'Over budget' : 'Remaining budget',
-                            style: const TextStyle(
-                              color: FintechColors.mutedText,
+                            style: TextStyle(
+                              color: fintech.mutedText,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           InkWell(
                             onTap: () => _showBudgetDialog(null, budget, categories),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               child: Text(
                                 'Edit Limit',
                                 style: TextStyle(
-                                  color: FintechColors.accent,
+                                  color: fintech.accent,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -169,7 +171,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                       Text(
                         '$currency${NumberFormat('#,##0.00').format(remaining.abs())} ${isExceeded ? 'over' : 'left'}',
                         style: TextStyle(
-                          color: isExceeded ? FintechColors.expense : FintechColors.primaryText,
+                          color: isExceeded ? fintech.expense : fintech.primaryText,
                           fontSize: 28,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
@@ -181,10 +183,10 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: progress.clamp(0.0, 1.0),
-                          backgroundColor: const Color(0xFF1F2A27),
+                          backgroundColor: fintech.cardBorder,
                           color: isExceeded || progress >= 0.9
-                              ? FintechColors.expense
-                              : FintechColors.accent,
+                              ? fintech.expense
+                              : fintech.accent,
                           minHeight: 6,
                         ),
                       ),
@@ -194,8 +196,8 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                         children: [
                           Text(
                             '$currency${NumberFormat('#,##0').format(spent)} spent',
-                            style: const TextStyle(
-                              color: FintechColors.mutedText,
+                            style: TextStyle(
+                              color: fintech.mutedText,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -203,7 +205,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                           Text(
                             '${(progress * 100).toInt()}% of $currency${NumberFormat('#,##0').format(budget.limitAmount)}',
                             style: TextStyle(
-                              color: isExceeded ? FintechColors.expense : FintechColors.accent,
+                              color: isExceeded ? fintech.expense : fintech.accent,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
@@ -217,25 +219,25 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: FintechColors.cardSurface,
+                    color: fintech.cardSurface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: FintechColors.cardBorder, width: 1),
+                    border: Border.all(color: fintech.cardBorder, width: 1),
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.account_balance_wallet_outlined, size: 42, color: FintechColors.mutedText),
+                      Icon(Icons.account_balance_wallet_outlined, size: 42, color: fintech.mutedText),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'No overall limit set for this month',
-                        style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
+                        style: TextStyle(color: fintech.mutedText, fontSize: 13),
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
                         onPressed: () => _showBudgetDialog(null, budget, categories),
-                        icon: const Icon(Icons.add_rounded, size: 16, color: FintechColors.accent),
-                        label: const Text('Set Monthly Limit', style: TextStyle(color: FintechColors.accent, fontWeight: FontWeight.w700)),
+                        icon: Icon(Icons.add_rounded, size: 16, color: fintech.accent),
+                        label: Text('Set Monthly Limit', style: TextStyle(color: fintech.accent, fontWeight: FontWeight.w700)),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: FintechColors.accent, width: 1),
+                          side: BorderSide(color: fintech.accent, width: 1),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
@@ -248,17 +250,17 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Category budgets',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: FintechColors.primaryText,
+                      color: fintech.primaryText,
                     ),
                   ),
                   IconButton(
                     onPressed: () => _showBudgetDialog(null, null, categories),
-                    icon: const Icon(Icons.add_circle_outline_rounded, color: FintechColors.accent, size: 20),
+                    icon: Icon(Icons.add_circle_outline_rounded, color: fintech.accent, size: 20),
                     tooltip: 'Add category budget',
                   ),
                 ],
@@ -270,14 +272,14 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: FintechColors.cardSurface,
+                    color: fintech.cardSurface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: FintechColors.cardBorder, width: 1),
+                    border: Border.all(color: fintech.cardBorder, width: 1),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
                       'No category budgets yet. Add limits for Food, Transport, etc.',
-                      style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
+                      style: TextStyle(color: fintech.mutedText, fontSize: 13),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -336,6 +338,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
     BudgetModel? existing,
     List<CategoryModel> categories,
   ) {
+    final fintech = context.fintech;
     final controller = TextEditingController(
       text: existing != null ? existing.limitAmount.toStringAsFixed(0) : '',
     );
@@ -352,17 +355,17 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
           children: [
             DropdownButtonFormField<int?>(
               initialValue: selectedCategoryId,
-              dropdownColor: FintechColors.cardSurface,
+              dropdownColor: fintech.cardSurface,
               decoration: const InputDecoration(labelText: 'Budget for'),
               items: [
-                const DropdownMenuItem<int?>(
+                DropdownMenuItem<int?>(
                   value: null,
-                  child: Text('Overall monthly budget', style: TextStyle(color: FintechColors.primaryText)),
+                  child: Text('Overall monthly budget', style: TextStyle(color: fintech.primaryText)),
                 ),
                 ...categories.map(
                   (category) => DropdownMenuItem<int?>(
                     value: category.id,
-                    child: Text(category.name, style: const TextStyle(color: FintechColors.primaryText)),
+                    child: Text(category.name, style: TextStyle(color: fintech.primaryText)),
                   ),
                 ),
               ],
@@ -372,7 +375,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
             TextField(
               controller: controller,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: FintechColors.primaryText),
+              style: TextStyle(color: fintech.primaryText),
               decoration: const InputDecoration(labelText: 'Limit amount'),
             ),
           ],
@@ -380,7 +383,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
+            child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
           ),
           if (existing != null && existing.id != null)
             TextButton(
@@ -388,7 +391,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                 ref.read(budgetProvider.notifier).deleteBudget(existing.id!);
                 Navigator.pop(dialogContext);
               },
-              child: const Text('Delete', style: TextStyle(color: FintechColors.expense)),
+              child: Text('Delete', style: TextStyle(color: fintech.expense)),
             ),
           FilledButton(
             onPressed: () {

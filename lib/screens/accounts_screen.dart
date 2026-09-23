@@ -18,16 +18,17 @@ class AccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accountState = ref.watch(accountProvider);
     final currency = ref.watch(settingsProvider).currencySymbol;
+    final fintech = context.fintech;
 
     return Scaffold(
-      backgroundColor: FintechColors.background,
+      backgroundColor: fintech.background,
       appBar: AppBar(
-        backgroundColor: FintechColors.background,
+        backgroundColor: fintech.background,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Accounts & More',
           style: TextStyle(
-            color: FintechColors.primaryText,
+            color: fintech.primaryText,
             fontSize: 20,
             fontWeight: FontWeight.w800,
           ),
@@ -42,12 +43,12 @@ class AccountsScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Your accounts',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: FintechColors.primaryText,
+                      color: fintech.primaryText,
                     ),
                   ),
                   IconButton(
@@ -64,16 +65,14 @@ class AccountsScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: FintechColors.cardSurface,
+                    color: fintech.cardSurface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: FintechColors.cardBorder, width: 1),
+                    border: Border.all(color: fintech.cardBorder, width: 1),
                   ),
-                  child: const Center(
-                    child: Text(
-                      'Create an account to track Cash, Bank, Card, or Wallet balances.',
-                      style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
-                      textAlign: TextAlign.center,
-                    ),
+                  child: Text(
+                    'Create an account to track Cash, Bank, Card, or Wallet balances.',
+                    style: TextStyle(color: fintech.mutedText, fontSize: 13),
+                    textAlign: TextAlign.center,
                   ),
                 )
               else
@@ -89,12 +88,12 @@ class AccountsScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // 3. Planning Section
-              const Text(
+              Text(
                 'Planning',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: FintechColors.primaryText,
+                  color: fintech.primaryText,
                 ),
               ),
               const SizedBox(height: 12),
@@ -149,6 +148,7 @@ class AccountsScreen extends ConsumerWidget {
     double balance,
     String currency,
   ) {
+    final fintech = context.fintech;
     final color = Color(account.colorValue);
     final formattedBalance = NumberFormat('#,##0.00').format(balance.abs());
     final isNegative = balance < 0;
@@ -156,9 +156,9 @@ class AccountsScreen extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -168,16 +168,16 @@ class AccountsScreen extends ConsumerWidget {
         ),
         title: Text(
           account.name,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
-            color: FintechColors.primaryText,
+            color: fintech.primaryText,
           ),
         ),
         subtitle: Text(
           account.type.toUpperCase(),
-          style: const TextStyle(
-            color: FintechColors.mutedText,
+          style: TextStyle(
+            color: fintech.mutedText,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
@@ -187,7 +187,7 @@ class AccountsScreen extends ConsumerWidget {
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 15,
-            color: isNegative ? FintechColors.expense : FintechColors.primaryText,
+            color: isNegative ? FintechColors.expense : fintech.primaryText,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
@@ -204,38 +204,40 @@ class AccountsScreen extends ConsumerWidget {
     required String subtitle,
     required VoidCallback onTap,
   }) {
+    final fintech = context.fintech;
     return Container(
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CategoryIcon(icon: icon, color: iconColor),
         title: Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
-            color: FintechColors.primaryText,
+            color: fintech.primaryText,
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(
-            color: FintechColors.mutedText,
+          style: TextStyle(
+            color: fintech.mutedText,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded, color: FintechColors.mutedText, size: 20),
+        trailing: Icon(Icons.chevron_right_rounded, color: fintech.mutedText, size: 20),
         onTap: onTap,
       ),
     );
   }
 
   void _showAccountDialog(BuildContext context, WidgetRef ref) {
+    final fintech = context.fintech;
     final name = TextEditingController();
     final opening = TextEditingController(text: '0');
     var type = 'bank';
@@ -249,20 +251,20 @@ class AccountsScreen extends ConsumerWidget {
             children: [
               TextField(
                 controller: name,
-                style: const TextStyle(color: FintechColors.primaryText),
+                style: TextStyle(color: fintech.primaryText),
                 decoration: const InputDecoration(labelText: 'Account name'),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: type,
-                dropdownColor: FintechColors.cardSurface,
+                dropdownColor: fintech.cardSurface,
                 decoration: const InputDecoration(labelText: 'Type'),
-                items: const [
-                  DropdownMenuItem(value: 'cash', child: Text('Cash', style: TextStyle(color: FintechColors.primaryText))),
-                  DropdownMenuItem(value: 'bank', child: Text('Bank', style: TextStyle(color: FintechColors.primaryText))),
-                  DropdownMenuItem(value: 'card', child: Text('Credit Card', style: TextStyle(color: FintechColors.primaryText))),
-                  DropdownMenuItem(value: 'wallet', child: Text('Wallet', style: TextStyle(color: FintechColors.primaryText))),
-                  DropdownMenuItem(value: 'other', child: Text('Other', style: TextStyle(color: FintechColors.primaryText))),
+                items: [
+                  DropdownMenuItem(value: 'cash', child: Text('Cash', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'bank', child: Text('Bank', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'card', child: Text('Credit Card', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'wallet', child: Text('Wallet', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'other', child: Text('Other', style: TextStyle(color: fintech.primaryText))),
                 ],
                 onChanged: (value) => setState(() => type = value ?? type),
               ),
@@ -270,7 +272,7 @@ class AccountsScreen extends ConsumerWidget {
               TextField(
                 controller: opening,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(color: FintechColors.primaryText),
+                style: TextStyle(color: fintech.primaryText),
                 decoration: const InputDecoration(labelText: 'Opening balance'),
               ),
             ],
@@ -278,7 +280,7 @@ class AccountsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
+              child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
             ),
             FilledButton(
               onPressed: () {
@@ -308,6 +310,7 @@ class AccountsScreen extends ConsumerWidget {
     WidgetRef ref,
     List<AccountModel> accounts,
   ) {
+    final fintech = context.fintech;
     if (accounts.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -329,13 +332,13 @@ class AccountsScreen extends ConsumerWidget {
             children: [
               DropdownButtonFormField<int>(
                 initialValue: from,
-                dropdownColor: FintechColors.cardSurface,
+                dropdownColor: fintech.cardSurface,
                 decoration: const InputDecoration(labelText: 'From account'),
                 items: accounts
                     .map(
                       (a) => DropdownMenuItem(
                         value: a.id,
-                        child: Text(a.name, style: const TextStyle(color: FintechColors.primaryText)),
+                        child: Text(a.name, style: TextStyle(color: fintech.primaryText)),
                       ),
                     )
                     .toList(),
@@ -344,13 +347,13 @@ class AccountsScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: to,
-                dropdownColor: FintechColors.cardSurface,
+                dropdownColor: fintech.cardSurface,
                 decoration: const InputDecoration(labelText: 'To account'),
                 items: accounts
                     .map(
                       (a) => DropdownMenuItem(
                         value: a.id,
-                        child: Text(a.name, style: const TextStyle(color: FintechColors.primaryText)),
+                        child: Text(a.name, style: TextStyle(color: fintech.primaryText)),
                       ),
                     )
                     .toList(),
@@ -360,7 +363,7 @@ class AccountsScreen extends ConsumerWidget {
               TextField(
                 controller: amount,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(color: FintechColors.primaryText),
+                style: TextStyle(color: fintech.primaryText),
                 decoration: const InputDecoration(labelText: 'Amount'),
               ),
             ],
@@ -368,7 +371,7 @@ class AccountsScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
+              child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
             ),
             FilledButton(
               onPressed: () {
@@ -395,6 +398,7 @@ class AccountsScreen extends ConsumerWidget {
     WidgetRef ref,
     AccountModel account,
   ) {
+    final fintech = context.fintech;
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -405,7 +409,7 @@ class AccountsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
+            child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
           ),
           FilledButton(
             onPressed: () {

@@ -61,22 +61,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final sortedDates = groupedTransactions.keys.toList()
       ..sort((a, b) => b.compareTo(a));
 
+    final fintech = context.fintech;
+
     return Scaffold(
-      backgroundColor: FintechColors.background,
+      backgroundColor: fintech.background,
       appBar: AppBar(
-        backgroundColor: FintechColors.background,
+        backgroundColor: fintech.background,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'History',
           style: TextStyle(
-            color: FintechColors.primaryText,
+            color: fintech.primaryText,
             fontSize: 20,
             fontWeight: FontWeight.w800,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list_rounded, color: FintechColors.mutedText),
+            icon: Icon(Icons.filter_list_rounded, color: fintech.mutedText),
             onPressed: () => _showFilterDialog(context, categories),
           ),
           const SizedBox(width: 8),
@@ -90,24 +92,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             child: Container(
               height: 46,
               decoration: BoxDecoration(
-                color: FintechColors.cardSurface,
+                color: fintech.cardSurface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: FintechColors.cardBorder, width: 1),
+                border: Border.all(color: fintech.cardBorder, width: 1),
               ),
               child: TextField(
                 controller: _searchController,
-                style: const TextStyle(color: FintechColors.primaryText, fontSize: 14),
+                style: TextStyle(color: fintech.primaryText, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Search transactions...',
-                  hintStyle: const TextStyle(color: FintechColors.mutedText, fontSize: 13),
-                  prefixIcon: const Icon(Icons.search_rounded, color: FintechColors.mutedText, size: 20),
+                  hintStyle: TextStyle(color: fintech.mutedText, fontSize: 13),
+                  prefixIcon: Icon(Icons.search_rounded, color: fintech.mutedText, size: 20),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, color: FintechColors.mutedText, size: 18),
+                          icon: Icon(Icons.clear_rounded, color: fintech.mutedText, size: 18),
                           onPressed: () {
                             setState(() {
                               _searchController.clear();
@@ -136,25 +138,25 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8.0),
                       child: Chip(
-                        backgroundColor: const Color(0xFF12382F),
-                        side: const BorderSide(color: FintechColors.accent, width: 1),
+                        backgroundColor: fintech.accent.withValues(alpha: 0.15),
+                        side: BorderSide(color: fintech.accent, width: 1),
                         label: Text(
                           _selectedType!.toUpperCase(),
-                          style: const TextStyle(color: FintechColors.accent, fontSize: 11, fontWeight: FontWeight.w700),
+                          style: TextStyle(color: fintech.accent, fontSize: 11, fontWeight: FontWeight.w700),
                         ),
-                        deleteIcon: const Icon(Icons.close_rounded, size: 14, color: FintechColors.accent),
+                        deleteIcon: Icon(Icons.close_rounded, size: 14, color: fintech.accent),
                         onDeleted: () => setState(() => _selectedType = null),
                       ),
                     ),
                   if (_selectedCategoryId != null)
                     Chip(
-                      backgroundColor: const Color(0xFF12382F),
-                      side: const BorderSide(color: FintechColors.accent, width: 1),
+                      backgroundColor: fintech.accent.withValues(alpha: 0.15),
+                      side: BorderSide(color: fintech.accent, width: 1),
                       label: Text(
                         categories.firstWhere((c) => c.id == _selectedCategoryId).name,
-                        style: const TextStyle(color: FintechColors.accent, fontSize: 11, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: fintech.accent, fontSize: 11, fontWeight: FontWeight.w700),
                       ),
-                      deleteIcon: const Icon(Icons.close_rounded, size: 14, color: FintechColors.accent),
+                      deleteIcon: Icon(Icons.close_rounded, size: 14, color: fintech.accent),
                       onDeleted: () => setState(() => _selectedCategoryId = null),
                     ),
                 ],
@@ -168,24 +170,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.receipt_long_outlined,
                           size: 64,
-                          color: FintechColors.mutedText,
+                          color: fintech.mutedText,
                         ),
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           'No transactions found',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: FintechColors.primaryText,
+                            color: fintech.primaryText,
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Your saved income and expenses will appear here.',
-                          style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
+                          style: TextStyle(color: fintech.mutedText, fontSize: 13),
                         ),
                       ],
                     ),
@@ -219,9 +221,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
-                              color: FintechColors.cardSurface,
+                              color: fintech.cardSurface,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: FintechColors.cardBorder, width: 1),
+                              border: Border.all(color: fintech.cardBorder, width: 1),
                             ),
                             child: Column(
                               children: items.map(
@@ -259,6 +261,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     List<CategoryModel> categories,
     String currency,
   ) {
+    final fintech = context.fintech;
+
     final category = categories.firstWhere(
       (c) => c.id == t.categoryId,
       orElse: () => CategoryModel(
@@ -279,10 +283,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
-          color: FintechColors.expense.withValues(alpha: 0.2),
+          color: fintech.expense.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.delete_outline_rounded, color: FintechColors.expense),
+        child: Icon(Icons.delete_outline_rounded, color: fintech.expense),
       ),
       confirmDismiss: (direction) async {
         return await showDialog(
@@ -293,11 +297,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
+                child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(backgroundColor: FintechColors.expense),
+                style: FilledButton.styleFrom(backgroundColor: fintech.expense),
                 child: const Text('Delete'),
               ),
             ],
@@ -333,12 +337,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _showFilterDialog(BuildContext context, List<CategoryModel> categories) {
+    final fintech = context.fintech;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: FintechColors.cardSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        side: BorderSide(color: FintechColors.cardBorder, width: 1),
+      backgroundColor: fintech.cardSurface,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        side: BorderSide(color: fintech.cardBorder, width: 1),
       ),
       builder: (context) {
         return StatefulBuilder(
@@ -349,26 +355,26 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Filter Transactions',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: FintechColors.primaryText,
+                      color: fintech.primaryText,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Type', style: TextStyle(color: FintechColors.mutedText, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text('Type', style: TextStyle(color: fintech.mutedText, fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       FilterChip(
                         label: const Text('Income'),
                         selected: _selectedType == 'income',
-                        selectedColor: const Color(0xFF12382F),
-                        checkmarkColor: FintechColors.accent,
+                        selectedColor: fintech.income.withValues(alpha: 0.15),
+                        checkmarkColor: fintech.income,
                         labelStyle: TextStyle(
-                          color: _selectedType == 'income' ? FintechColors.accent : FintechColors.primaryText,
+                          color: _selectedType == 'income' ? fintech.income : fintech.primaryText,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
@@ -381,10 +387,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       FilterChip(
                         label: const Text('Expense'),
                         selected: _selectedType == 'expense',
-                        selectedColor: const Color(0xFF2E1815),
-                        checkmarkColor: FintechColors.expense,
+                        selectedColor: fintech.expense.withValues(alpha: 0.15),
+                        checkmarkColor: fintech.expense,
                         labelStyle: TextStyle(
-                          color: _selectedType == 'expense' ? FintechColors.expense : FintechColors.primaryText,
+                          color: _selectedType == 'expense' ? fintech.expense : fintech.primaryText,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
@@ -396,30 +402,30 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Text('Category', style: TextStyle(color: FintechColors.mutedText, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text('Category', style: TextStyle(color: fintech.mutedText, fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF101715),
+                      color: fintech.inputFill,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: FintechColors.cardBorder, width: 1),
+                      border: Border.all(color: fintech.cardBorder, width: 1),
                     ),
                     child: DropdownButton<int>(
                       isExpanded: true,
                       underline: const SizedBox.shrink(),
-                      dropdownColor: FintechColors.cardSurface,
+                      dropdownColor: fintech.cardSurface,
                       value: _selectedCategoryId,
-                      hint: const Text('All Categories', style: TextStyle(color: FintechColors.mutedText, fontSize: 13)),
+                      hint: Text('All Categories', style: TextStyle(color: fintech.mutedText, fontSize: 13)),
                       items: [
-                        const DropdownMenuItem(
+                        DropdownMenuItem(
                           value: null,
-                          child: Text('All Categories', style: TextStyle(color: FintechColors.primaryText, fontSize: 13)),
+                          child: Text('All Categories', style: TextStyle(color: fintech.primaryText, fontSize: 13)),
                         ),
                         ...categories.map(
                           (c) => DropdownMenuItem(
                             value: c.id,
-                            child: Text(c.name, style: const TextStyle(color: FintechColors.primaryText, fontSize: 13)),
+                            child: Text(c.name, style: TextStyle(color: fintech.primaryText, fontSize: 13)),
                           ),
                         ),
                       ],

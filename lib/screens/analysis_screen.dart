@@ -63,16 +63,17 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     }
     
     final dailyAverage = totalExpense / (daysElapsed > 0 ? daysElapsed : 1);
+    final fintech = context.fintech;
 
     return Scaffold(
-      backgroundColor: FintechColors.background,
+      backgroundColor: fintech.background,
       appBar: AppBar(
-        backgroundColor: FintechColors.background,
+        backgroundColor: fintech.background,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Analysis',
           style: TextStyle(
-            color: FintechColors.primaryText,
+            color: fintech.primaryText,
             fontSize: 20,
             fontWeight: FontWeight.w800,
           ),
@@ -95,7 +96,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   child: StatCard(
                     title: 'Total savings',
                     amount: savings,
-                    color: savings >= 0 ? FintechColors.income : FintechColors.expense,
+                    color: savings >= 0 ? fintech.income : fintech.expense,
                     currency: settings.currencySymbol,
                   ),
                 ),
@@ -104,7 +105,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   child: StatCard(
                     title: 'Daily average',
                     amount: dailyAverage,
-                    color: FintechColors.primaryText,
+                    color: fintech.primaryText,
                     currency: settings.currencySymbol,
                     subtitle: '/ day',
                   ),
@@ -114,12 +115,12 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
             const SizedBox(height: 24),
 
             // 3. Expense Breakdown Header
-            const Text(
+            Text(
               'Expense Breakdown',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: FintechColors.primaryText,
+                color: fintech.primaryText,
               ),
             ),
             const SizedBox(height: 14),
@@ -134,12 +135,12 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
             const SizedBox(height: 24),
 
             // 5. Transactions Section
-            const Text(
+            Text(
               'Transactions',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: FintechColors.primaryText,
+                color: fintech.primaryText,
               ),
             ),
             const SizedBox(height: 12),
@@ -156,6 +157,8 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   }
 
   Widget _buildPeriodSelector() {
+    final fintech = context.fintech;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final periods = [
       (AnalysisPeriod.daily, 'Daily'),
       (AnalysisPeriod.weekly, 'Weekly'),
@@ -167,9 +170,9 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
       height: 38,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: Row(
         children: periods.map((period) {
@@ -184,7 +187,9 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
               child: Container(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF12382F) : Colors.transparent,
+                  color: isSelected
+                      ? (isDark ? const Color(0xFF12382F) : fintech.accent.withValues(alpha: 0.15))
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Text(
@@ -192,7 +197,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? FintechColors.accent : FintechColors.mutedText,
+                    color: isSelected ? fintech.accent : fintech.mutedText,
                   ),
                 ),
               ),
@@ -238,18 +243,20 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         break;
     }
 
+    final fintech = context.fintech;
+
     return Container(
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left_rounded, size: 22, color: FintechColors.mutedText),
+            icon: Icon(Icons.chevron_left_rounded, size: 22, color: fintech.mutedText),
             onPressed: () => _navigatePeriod(-1),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
@@ -264,15 +271,15 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.calendar_today_outlined, size: 13, color: FintechColors.accent),
+                    Icon(Icons.calendar_today_outlined, size: 13, color: fintech.accent),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: FintechColors.primaryText,
+                          color: fintech.primaryText,
                         ),
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
@@ -284,7 +291,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right_rounded, size: 22, color: FintechColors.mutedText),
+            icon: Icon(Icons.chevron_right_rounded, size: 22, color: fintech.mutedText),
             onPressed: () => _navigatePeriod(1),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
@@ -328,19 +335,6 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: FintechColors.accent,
-              onPrimary: Color(0xFF0C1110),
-              surface: FintechColors.cardSurface,
-              onSurface: FintechColors.primaryText,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
@@ -374,8 +368,8 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           final isCurrentWeek = !today.isBefore(startOfWeek) && !today.isAfter(endOfWeek);
           final rolling7Start = today.subtract(const Duration(days: 6));
           final effectiveStart = (isCurrentWeek && rolling7Start.isBefore(startOfWeek))
-              ? rolling7Start
-              : startOfWeek;
+            ? rolling7Start
+            : startOfWeek;
 
           return !localDate.isBefore(effectiveStart) && !localDate.isAfter(endOfWeek);
         case AnalysisPeriod.monthly:
@@ -393,19 +387,22 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     String currency,
     double totalExpense,
   ) {
+    final fintech = context.fintech;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (expenses.isEmpty || totalExpense <= 0) {
       return Container(
         width: double.infinity,
         height: 180,
         decoration: BoxDecoration(
-          color: FintechColors.cardSurface,
+          color: fintech.cardSurface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: FintechColors.cardBorder, width: 1),
+          border: Border.all(color: fintech.cardBorder, width: 1),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
             'No expenses in this period',
-            style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
+            style: TextStyle(color: fintech.mutedText, fontSize: 13),
           ),
         ),
       );
@@ -463,21 +460,21 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'Total',
                       style: TextStyle(
                         fontSize: 11,
-                        color: FintechColors.mutedText,
+                        color: fintech.mutedText,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     Text(
                       '$currency${NumberFormat('#,##0').format(totalExpense)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: FintechColors.primaryText,
-                        fontFeatures: [FontFeature.tabularFigures()],
+                        color: fintech.primaryText,
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
                   ],
@@ -534,10 +531,10 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   const SizedBox(height: 4),
                   Text(
                     cat.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: FintechColors.primaryText,
+                      color: fintech.primaryText,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -545,11 +542,11 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
                   ),
                   Text(
                     '$currency${NumberFormat('#,##0').format(entry.value)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
-                      color: FintechColors.mutedText,
+                      color: fintech.mutedText,
                       fontWeight: FontWeight.w600,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -568,15 +565,15 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
       height: 340,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: CustomPaint(
         painter: _InfographicLinesPainter(
           leftCount: leftItems.length,
           rightCount: rightItems.length,
-          lineColor: const Color(0xFF263531),
+          lineColor: isDark ? const Color(0xFF263531) : fintech.cardBorder,
         ),
         child: Stack(
           children: stackChildren,
@@ -619,6 +616,8 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     List<CategoryModel> categories,
     String currency,
   ) {
+    final fintech = context.fintech;
+
     if (transactions.isEmpty) {
       final periodName = switch (_selectedPeriod) {
         AnalysisPeriod.daily => 'day',
@@ -630,18 +629,18 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
         decoration: BoxDecoration(
-          color: FintechColors.cardSurface,
+          color: fintech.cardSurface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: FintechColors.cardBorder, width: 1),
+          border: Border.all(color: fintech.cardBorder, width: 1),
         ),
         child: Column(
           children: [
-            const Icon(Icons.receipt_long_outlined, size: 36, color: FintechColors.mutedText),
+            Icon(Icons.receipt_long_outlined, size: 36, color: fintech.mutedText),
             const SizedBox(height: 8),
             Text(
               'No transactions for this $periodName',
-              style: const TextStyle(
-                color: FintechColors.primaryText,
+              style: TextStyle(
+                color: fintech.primaryText,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -651,7 +650,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
               _selectedPeriod == AnalysisPeriod.daily
                   ? 'Use ‹ or › to view other days or add a transaction'
                   : 'Use ‹ or › to browse other dates',
-              style: const TextStyle(color: FintechColors.mutedText, fontSize: 12),
+              style: TextStyle(color: fintech.mutedText, fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ],
@@ -662,9 +661,9 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
+        color: fintech.cardSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
+        border: Border.all(color: fintech.cardBorder, width: 1),
       ),
       child: Column(
         children: transactions.map((t) {
@@ -710,6 +709,8 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
   }
 
   Future<void> _confirmDeleteTransaction(TransactionModel transaction) async {
+    final fintech = context.fintech;
+
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -718,11 +719,11 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: FintechColors.mutedText)),
+            child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: FintechColors.expense),
+            style: FilledButton.styleFrom(backgroundColor: fintech.expense),
             child: const Text('Delete'),
           ),
         ],
