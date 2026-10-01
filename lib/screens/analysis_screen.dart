@@ -25,21 +25,8 @@ class AnalysisScreen extends ConsumerStatefulWidget {
 }
 
 class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
-  final GlobalKey<RevenueFlowCategoryChartState> _revenueFlowKey =
-      GlobalKey<RevenueFlowCategoryChartState>();
-  DateTime _lastRiseTriggerTime =
-      DateTime.now().subtract(const Duration(seconds: 5));
-
   AnalysisPeriod _selectedPeriod = AnalysisPeriod.monthly;
   DateTime _selectedDate = DateTime.now();
-
-  void _triggerChartRiseAnimation() {
-    final now = DateTime.now();
-    if (now.difference(_lastRiseTriggerTime).inMilliseconds > 450) {
-      _lastRiseTriggerTime = now;
-      _revenueFlowKey.currentState?.animateRise();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,70 +82,8 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     final dailyAverage = totalExpense / (daysElapsed > 0 ? daysElapsed : 1);
     final fintech = context.fintech;
 
-    // Aggregate category revenue / spending flow items for the Revenue Flow bar chart
     final expenseTransactions =
         filteredTransactions.where((t) => t.type == 'expense').toList();
-    final Map<int, double> categorySums = {};
-    for (final t in expenseTransactions) {
-      categorySums[t.categoryId] =
-          (categorySums[t.categoryId] ?? 0) + t.amount;
-    }
-
-    final sortedCatEntries = categorySums.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    final List<RevenueFlowCategoryItem> flowItems = [];
-
-    // Add categories with spending in this period
-    for (final entry in sortedCatEntries.take(5)) {
-      final cat = categories.firstWhere(
-        (c) => c.id == entry.key,
-        orElse: () => CategoryModel(
-          name: 'Category',
-          type: 'expense',
-          colorValue: Colors.purple.toARGB32(),
-          iconCode: Icons.category.codePoint,
-          isCustom: false,
-        ),
-      );
-      final pct = totalExpense > 0 ? (entry.value / totalExpense * 100) : 0.0;
-      flowItems.add(RevenueFlowCategoryItem(
-        categoryName: cat.name,
-        amount: entry.value,
-        percentage: pct,
-        color: Color(cat.colorValue),
-        icon: IconHelper.getIcon(cat.iconCode),
-      ));
-    }
-
-    // Pad with other user categories up to 5 so 5 pill bars always render with stadium balance
-    if (flowItems.length < 5) {
-      final usedCatIds = sortedCatEntries.map((e) => e.key).toSet();
-      final otherCats =
-          categories.where((c) => !usedCatIds.contains(c.id)).toList();
-      for (final cat in otherCats) {
-        if (flowItems.length >= 5) break;
-        flowItems.add(RevenueFlowCategoryItem(
-          categoryName: cat.name,
-          amount: 0.0,
-          percentage: 0.0,
-          color: Color(cat.colorValue),
-          icon: IconHelper.getIcon(cat.iconCode),
-        ));
-      }
-    }
-
-    // Fallback if no categories configured yet
-    if (flowItems.isEmpty) {
-      const defaultNames = ['Food', 'Bills', 'Shop', 'Travel', 'Health'];
-      for (final name in defaultNames) {
-        flowItems.add(RevenueFlowCategoryItem(
-          categoryName: name,
-          amount: 0.0,
-          percentage: 0.0,
-        ));
-      }
-    }
 
     return Scaffold(
       backgroundColor: fintech.background,
@@ -174,107 +99,70 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           ),
         ),
       ),
-      body: Listener(
-        onPointerMove: (pointerEvent) {
-          // When pointer moves upwards (dy < -4.0), trigger the down-to-up rise animation
-          if (pointerEvent.delta.dy < -4.0) {
-            _triggerChartRiseAnimation();
-          }
-        },
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            if (notification is ScrollUpdateNotification) {
-              if (notification.scrollDelta != null &&
-                  notification.scrollDelta! > 6.0) {
-                _triggerChartRiseAnimation();
-              }
-            }
-            return false;
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 100.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 100.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Period Selector Segmented Bar & Date Navigator
+            _buildPeriodSelector(),
+            _buildDateNavigator(),
+            const SizedBox(height: 16),
+
+            // 2. Summary Stats Cards Row
+            Row(
               children: [
-                // 1. Period Selector Segmented Bar & Date Navigator
-                _buildPeriodSelector(),
-                _buildDateNavigator(),
-                const SizedBox(height: 16),
-
-                // 2. Summary Stats Cards Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: StatCard(
-                        title: 'Total savings',
-                        amount: savings,
-                        color: savings >= 0 ? fintech.income : fintech.expense,
-                        currency: settings.currencySymbol,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: StatCard(
-                        title: 'Daily average',
-                        amount: dailyAverage,
-                        color: fintech.primaryText,
-                        currency: settings.currencySymbol,
-                        subtitle: '/ day',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // 3. Revenue Flow Category Chart (Ethereal Design matching screenshot)
-                RevenueFlowCategoryChart(
-                  key: _revenueFlowKey,
-                  items: flowItems,
-                  currency: settings.currencySymbol,
-                  periodLabel: periodStr,
-                  title: 'Revenue flow',
-                  onPeriodTap: () {
-                    setState(() {
-                      _selectedPeriod = switch (_selectedPeriod) {
-                        AnalysisPeriod.daily => AnalysisPeriod.weekly,
-                        AnalysisPeriod.weekly => AnalysisPeriod.monthly,
-                        AnalysisPeriod.monthly => AnalysisPeriod.yearly,
-                        AnalysisPeriod.yearly => AnalysisPeriod.daily,
-                      };
-                      _selectedDate = DateTime.now();
-                    });
-                    _triggerChartRiseAnimation();
-                  },
-                  onHeaderActionTap: () {
-                    _triggerChartRiseAnimation();
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // 4. Expense Breakdown Header
-                Text(
-                  'Expense Breakdown',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: fintech.primaryText,
+                Expanded(
+                  child: StatCard(
+                    title: 'Total savings',
+                    amount: savings,
+                    color: savings >= 0 ? fintech.income : fintech.expense,
+                    currency: settings.currencySymbol,
                   ),
                 ),
-                const SizedBox(height: 14),
-
-                // 5. Preserved Circular Infographic Chart in Fintech Container
-                _buildInfographicChart(
-                  expenseTransactions,
-                  categories,
-                  settings.currencySymbol,
-                  totalExpense,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: StatCard(
+                    title: 'Daily average',
+                    amount: dailyAverage,
+                    color: fintech.primaryText,
+                    currency: settings.currencySymbol,
+                    subtitle: '/ day',
+                  ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 24),
+
+            // 3. Expense Breakdown Header & Infographic Chart
+            Text(
+              'Expense Breakdown',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: fintech.primaryText,
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            _buildInfographicChart(
+              expenseTransactions,
+              categories,
+              settings.currencySymbol,
+              totalExpense,
+            ),
+
+            // 4. Category Spending List (Detailed Breakdown)
+            _buildCategorySpendingList(
+              expenseTransactions,
+              categories,
+              settings.currencySymbol,
+              totalExpense,
+            ),
+          ],
         ),
       ),
     );
@@ -732,6 +620,159 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCategorySpendingList(
+    List<TransactionModel> expenses,
+    List<CategoryModel> categories,
+    String currency,
+    double totalExpense,
+  ) {
+    final fintech = context.fintech;
+
+    if (expenses.isEmpty || totalExpense <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    final Map<int, double> categoryTotals = {};
+    final Map<int, int> categoryTxCounts = {};
+    for (var t in expenses) {
+      categoryTotals[t.categoryId] =
+          (categoryTotals[t.categoryId] ?? 0) + t.amount;
+      categoryTxCounts[t.categoryId] =
+          (categoryTxCounts[t.categoryId] ?? 0) + 1;
+    }
+
+    final sortedEntries = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Category Spending',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: fintech.primaryText,
+              ),
+            ),
+            Text(
+              '${sortedEntries.length} ${sortedEntries.length == 1 ? 'Category' : 'Categories'}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: fintech.mutedText,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: fintech.cardSurface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: fintech.cardBorder, width: 1),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: sortedEntries.length,
+            separatorBuilder: (context, index) => Divider(
+              color: fintech.cardBorder,
+              height: 1,
+            ),
+            itemBuilder: (context, index) {
+              final entry = sortedEntries[index];
+              final cat = categories.firstWhere(
+                (c) => c.id == entry.key,
+                orElse: () => CategoryModel(
+                  name: 'Unknown',
+                  type: 'expense',
+                  colorValue: Colors.grey.toARGB32(),
+                  iconCode: Icons.help.codePoint,
+                  isCustom: false,
+                ),
+              );
+              final amount = entry.value;
+              final percentage = (amount / totalExpense) * 100;
+              final count = categoryTxCounts[entry.key] ?? 1;
+              final catColor = Color(cat.colorValue);
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        // Category Icon
+                        CategoryIcon(
+                          icon: IconHelper.getIcon(cat.iconCode),
+                          color: catColor,
+                        ),
+                        const SizedBox(width: 14),
+                        // Name & Transactions count / percentage
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                cat.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: fintech.primaryText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$count ${count == 1 ? 'transaction' : 'transactions'} • ${percentage.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: fintech.mutedText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Amount
+                        Text(
+                          '$currency${NumberFormat('#,##0.00').format(amount)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: fintech.primaryText,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Visual progress bar of spending percentage
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: (amount / totalExpense).clamp(0.0, 1.0),
+                        backgroundColor: catColor.withValues(alpha: 0.12),
+                        valueColor: AlwaysStoppedAnimation<Color>(catColor),
+                        minHeight: 4,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

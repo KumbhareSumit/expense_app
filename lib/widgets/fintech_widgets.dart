@@ -1381,6 +1381,8 @@ class EtherealTotalBalanceCard extends StatelessWidget {
   final double balance;
   final String currency;
   final String? subtitle;
+  final double? monthlyBudget;
+  final double? spentAmount;
   final VoidCallback? onTransfer;
   final VoidCallback? onTopUp;
   final bool showActions;
@@ -1390,6 +1392,8 @@ class EtherealTotalBalanceCard extends StatelessWidget {
     required this.balance,
     this.currency = '₹',
     this.subtitle,
+    this.monthlyBudget,
+    this.spentAmount,
     this.onTransfer,
     this.onTopUp,
     this.showActions = true,
@@ -1402,6 +1406,86 @@ class EtherealTotalBalanceCard extends StatelessWidget {
     final sign = balance < 0 ? '-' : '';
     final bool hasActions =
         showActions && onTransfer != null && onTopUp != null;
+
+    // Determine budget status & dynamic color indicator
+    Widget? budgetBadge;
+    if (monthlyBudget != null && monthlyBudget! > 0) {
+      final spent = spentAmount ?? 0.0;
+      final ratio = spent / monthlyBudget!;
+
+      Color dotColor;
+      Color statusTextColor;
+      String budgetText;
+
+      if (ratio <= 0.60) {
+        // Green: Healthy / Full / Plenty remaining (spent <= 60%)
+        dotColor = const Color(0xFF059669);
+        statusTextColor = const Color(0xFF065F46);
+        budgetText = '$currency${NumberFormat('#,##0').format(monthlyBudget)}';
+      } else if (ratio <= 0.85) {
+        // Yellow/Amber: Moderate / Warning (60% - 85% spent)
+        dotColor = const Color(0xFFD97706);
+        statusTextColor = const Color(0xFF92400E);
+        budgetText = '$currency${NumberFormat('#,##0').format(monthlyBudget)}';
+      } else {
+        // Red: Critical / Near Limit or Exceeded (> 85% spent)
+        dotColor = const Color(0xFFDC2626);
+        statusTextColor = const Color(0xFF991B1B);
+        final remaining = monthlyBudget! - spent;
+        budgetText = remaining >= 0
+            ? '$currency${NumberFormat('#,##0').format(monthlyBudget)}'
+            : 'Over $currency${NumberFormat('#,##0').format(remaining.abs())}';
+      }
+
+      budgetBadge = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.60),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: dotColor.withValues(alpha: 0.35),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: dotColor.withValues(alpha: 0.6),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              'Budget: $budgetText',
+              style: TextStyle(
+                color: statusTextColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       width: double.infinity,
@@ -1433,14 +1517,21 @@ class EtherealTotalBalanceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Title
-          const Text(
-            'Total balance',
-            style: TextStyle(
-              color: Color(0xFF0F1E13),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+          // Top Row: Title on the left, Dynamic Budget badge in top-right
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text(
+                'Total balance',
+                style: TextStyle(
+                  color: Color(0xFF0F1E13),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              ?budgetBadge,
+            ],
           ),
           const SizedBox(height: 6),
 

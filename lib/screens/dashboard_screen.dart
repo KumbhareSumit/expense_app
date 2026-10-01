@@ -6,6 +6,7 @@ import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/account_provider.dart';
 import '../providers/debt_provider.dart';
+import '../providers/budget_provider.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../models/account_model.dart';
@@ -34,6 +35,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final categories = ref.watch(categoryProvider);
     final settings = ref.watch(settingsProvider);
     final debts = ref.watch(debtProvider);
+    final budgets = ref.watch(budgetProvider);
     final currency = settings.currencySymbol;
     final accountState = ref.watch(accountProvider);
 
@@ -56,6 +58,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final incomeSubtitle = summary.getIncomeSubtitle(currency);
 
     final now = DateTime.now();
+
+    // Calculate monthly budget limit for the current month
+    final overallBudget = budgets
+        .where((b) => b.month == now.month && b.year == now.year && b.categoryId == null)
+        .firstOrNull;
+    double monthlyBudgetLimit = overallBudget?.limitAmount ?? 0.0;
+    if (monthlyBudgetLimit == 0.0) {
+      monthlyBudgetLimit = budgets
+          .where((b) => b.month == now.month && b.year == now.year && b.categoryId != null)
+          .fold(0.0, (sum, b) => sum + b.limitAmount);
+    }
 
     double owedToMe = 0;
     double iOwe = 0;
@@ -133,6 +146,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               subtitle: summary.carriedForwardFromPrevious > 0
                   ? '+$currency${NumberFormat('#,##0').format(summary.carriedForwardFromPrevious)} revenue from ${summary.carriedForwardFromMonthName}'
                   : (incomeSubtitle ?? 'Available balance'),
+              monthlyBudget: monthlyBudgetLimit > 0 ? monthlyBudgetLimit : null,
+              spentAmount: totalExpense,
               showActions: false,
             ),
             const SizedBox(height: 14),
