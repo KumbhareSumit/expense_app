@@ -26,7 +26,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'expense_tracker.db');
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
       onConfigure: (db) async {
@@ -84,7 +84,7 @@ class DBHelper {
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await db.execute(
-        'CREATE TABLE accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL, openingBalance REAL NOT NULL, colorValue INTEGER NOT NULL, iconCode INTEGER NOT NULL)',
+        'CREATE TABLE accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL, openingBalance REAL NOT NULL, colorValue INTEGER NOT NULL, iconCode INTEGER NOT NULL, createdAt TEXT)',
       );
       await db.execute('ALTER TABLE transactions ADD COLUMN accountId INTEGER');
       final accountId = await db.insert('accounts', {
@@ -93,6 +93,7 @@ class DBHelper {
         'openingBalance': 0.0,
         'colorValue': 0xFF176B5B,
         'iconCode': 0xE8B0,
+        'createdAt': DateTime.now().toIso8601String(),
       });
       await db.update('transactions', {
         'accountId': accountId,
@@ -110,11 +111,19 @@ class DBHelper {
         "UPDATE transactions SET type = 'investment' WHERE categoryId IN (SELECT id FROM categories WHERE name = 'Investment' AND isCustom = 0)",
       );
     }
+    if (oldVersion < 5) {
+      try {
+        await db.execute('ALTER TABLE accounts ADD COLUMN createdAt TEXT');
+        await db.execute(
+          "UPDATE accounts SET createdAt = datetime('now') WHERE createdAt IS NULL",
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> _createFeatureTables(Database db) async {
     await db.execute(
-      'CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL, openingBalance REAL NOT NULL, colorValue INTEGER NOT NULL, iconCode INTEGER NOT NULL)',
+      'CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL, openingBalance REAL NOT NULL, colorValue INTEGER NOT NULL, iconCode INTEGER NOT NULL, createdAt TEXT)',
     );
     await db.execute(
       'CREATE TABLE IF NOT EXISTS transfers (id INTEGER PRIMARY KEY AUTOINCREMENT, fromAccountId INTEGER NOT NULL, toAccountId INTEGER NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, note TEXT, FOREIGN KEY (fromAccountId) REFERENCES accounts(id) ON DELETE CASCADE, FOREIGN KEY (toAccountId) REFERENCES accounts(id) ON DELETE CASCADE)',

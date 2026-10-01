@@ -7,10 +7,12 @@ import 'dart:math' as math;
 import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/account_provider.dart';
 import '../models/transaction_model.dart';
 import '../models/category_model.dart';
 import '../utils/app_theme.dart';
 import '../utils/icon_helper.dart';
+import '../utils/financial_calculator.dart';
 import '../widgets/fintech_widgets.dart';
 import 'add_transaction_screen.dart';
 
@@ -33,15 +35,26 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
     final categories = ref.watch(categoryProvider);
     final settings = ref.watch(settingsProvider);
 
+    final accountState = ref.watch(accountProvider);
+
     final filteredTransactions = _filterTransactions(transactions);
 
-    final totalIncome = filteredTransactions
-        .where((t) => t.type == 'income')
-        .fold(0.0, (sum, t) => sum + t.amount);
-    final totalExpense = filteredTransactions
-        .where((t) => t.type == 'expense')
-        .fold(0.0, (sum, t) => sum + t.amount);
-    final savings = totalIncome - totalExpense;
+    final periodStr = switch (_selectedPeriod) {
+      AnalysisPeriod.daily => 'Daily',
+      AnalysisPeriod.weekly => 'Weekly',
+      AnalysisPeriod.monthly => 'Monthly',
+      AnalysisPeriod.yearly => 'Yearly',
+    };
+
+    final summary = FinancialCalculator.calculate(
+      transactions: transactions,
+      accounts: accountState.accounts,
+      targetDate: _selectedDate,
+      period: periodStr,
+    );
+
+    final totalExpense = summary.totalExpense;
+    final savings = summary.balance;
 
     final now = DateTime.now();
     int daysElapsed = 1;

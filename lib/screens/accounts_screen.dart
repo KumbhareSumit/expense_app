@@ -191,6 +191,7 @@ class AccountsScreen extends ConsumerWidget {
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
+        onTap: () => _showEditAccountDialog(context, ref, account),
         onLongPress: () => _confirmDelete(context, ref, account),
       ),
     );
@@ -293,11 +294,85 @@ class AccountsScreen extends ConsumerWidget {
                         openingBalance: amount,
                         colorValue: const Color(0xFF3EE6B0).toARGB32(),
                         iconCode: Icons.account_balance_wallet.codePoint,
+                        createdAt: DateTime.now(),
                       ),
                     );
                 Navigator.pop(dialogContext);
               },
               child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditAccountDialog(
+    BuildContext context,
+    WidgetRef ref,
+    AccountModel account,
+  ) {
+    final fintech = context.fintech;
+    final name = TextEditingController(text: account.name);
+    final opening = TextEditingController(
+      text: account.openingBalance == 0 ? '0' : account.openingBalance.toStringAsFixed(2),
+    );
+    var type = account.type;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Edit Account'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                style: TextStyle(color: fintech.primaryText),
+                decoration: const InputDecoration(labelText: 'Account name'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: type,
+                dropdownColor: fintech.cardSurface,
+                decoration: const InputDecoration(labelText: 'Type'),
+                items: [
+                  DropdownMenuItem(value: 'cash', child: Text('Cash', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'bank', child: Text('Bank', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'card', child: Text('Credit Card', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'wallet', child: Text('Wallet', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'other', child: Text('Other', style: TextStyle(color: fintech.primaryText))),
+                ],
+                onChanged: (value) => setState(() => type = value ?? type),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: opening,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(color: fintech.primaryText),
+                decoration: const InputDecoration(labelText: 'Opening balance'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
+            ),
+            FilledButton(
+              onPressed: () {
+                final amount = double.tryParse(opening.text) ?? account.openingBalance;
+                if (name.text.trim().isEmpty) return;
+                ref.read(accountProvider.notifier).updateAccount(
+                      account.copyWith(
+                        name: name.text.trim(),
+                        type: type,
+                        openingBalance: amount,
+                      ),
+                    );
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Save'),
             ),
           ],
         ),

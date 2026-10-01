@@ -12,6 +12,7 @@ import '../../providers/goal_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/financial_calculator.dart';
 import '../../utils/icon_helper.dart';
 import '../../widgets/fintech_widgets.dart';
 import '../accounts_screen.dart';
@@ -331,16 +332,17 @@ class _WebCrmLayoutState extends ConsumerState<WebCrmLayout> {
       _selectedPeriod,
     );
 
-    double totalIncome = 0;
-    double totalExpense = 0;
-    for (var t in filteredTransactions) {
-      if (t.type == 'income') {
-        totalIncome += t.amount;
-      } else if (t.type == 'expense') {
-        totalExpense += t.amount;
-      }
-    }
-    final balance = totalIncome - totalExpense;
+    final summary = FinancialCalculator.calculate(
+      transactions: transactions,
+      accounts: accountState.accounts,
+      targetDate: _selectedDate,
+      period: _selectedPeriod,
+    );
+
+    final totalIncome = summary.totalIncome;
+    final totalExpense = summary.totalExpense;
+    final balance = summary.balance;
+    final incomeSubtitle = summary.getIncomeSubtitle(currency);
 
     final now = DateTime.now();
     final currentMonthBudget = budgets
@@ -510,6 +512,7 @@ class _WebCrmLayoutState extends ConsumerState<WebCrmLayout> {
                         color: FintechColors.income,
                         icon: Icons.arrow_upward_rounded,
                         currency: currency,
+                        subtitle: incomeSubtitle,
                       ),
                     ),
                     const SizedBox(width: 18),

@@ -11,6 +11,7 @@ import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../utils/icon_helper.dart';
 import '../utils/app_theme.dart';
+import '../utils/financial_calculator.dart';
 import '../widgets/fintech_widgets.dart';
 import 'add_transaction_screen.dart';
 import 'settings_screen.dart';
@@ -43,19 +44,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       _selectedPeriod,
     );
 
-    double totalIncome = 0;
-    double totalExpense = 0;
-    double totalInvestment = 0;
-    for (var t in filteredTransactions) {
-      if (t.type == 'income') {
-        totalIncome += t.amount;
-      } else if (t.type == 'expense') {
-        totalExpense += t.amount;
-      } else if (t.type == 'investment') {
-        totalInvestment += t.amount;
-      }
-    }
-    final balance = totalIncome - totalExpense;
+    final summary = FinancialCalculator.calculate(
+      transactions: transactions,
+      accounts: accountState.accounts,
+      targetDate: _selectedDate,
+      period: _selectedPeriod,
+    );
+
+    final totalIncome = summary.totalIncome;
+    final totalExpense = summary.totalExpense;
+    final totalInvestment = summary.totalInvestment;
+    final balance = summary.balance;
+    final incomeSubtitle = summary.getIncomeSubtitle(currency);
 
     final now = DateTime.now();
     final currentMonthBudget = budgets
@@ -194,6 +194,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     color: fintech.income,
                     icon: Icons.arrow_upward_rounded,
                     currency: currency,
+                    subtitle: incomeSubtitle,
                   ),
                 ),
                 const SizedBox(width: 12),
