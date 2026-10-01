@@ -108,42 +108,42 @@ class FintechThemeColors extends ThemeExtension<FintechThemeColors> {
 }
 
 class FintechColors {
-  // Dark mode constants (for fallback & legacy references)
-  static const background = Color(0xFF0C1110);
-  static const cardSurface = Color(0xFF141C1A);
-  static const cardBorder = Color(0xFF1F2A27);
-  static const heroTop = Color(0xFF12382F);
-  static const heroBottom = Color(0xFF0F1E1B);
-  static const heroBorder = Color(0xFF1E3A34);
-  static const accent = Color(0xFF3EE6B0);
-  static const income = Color(0xFF3EE6B0);
-  static const expense = Color(0xFFFF7A6B);
+  // Dark mode constants matching the Image 2 "ethereal" theme
+  static const background = Color(0xFF0C0D14);
+  static const cardSurface = Color(0xFF161722);
+  static const cardBorder = Color(0xFF222433);
+  static const heroTop = Color(0xFFB8F58E);
+  static const heroBottom = Color(0xFF72EEA5);
+  static const heroBorder = Color(0xFFA2EE98);
+  static const accent = Color(0xFFC5F877);
+  static const income = Color(0xFFC5F877);
+  static const expense = Color(0xFFFF6B6B);
   static const warning = Color(0xFFFFB020);
-  static const primaryText = Color(0xFFE8F1EE);
-  static const secondaryText = Color(0xFFA5B8B3);
-  static const mutedText = Color(0xFF7D8F8A);
-  static const navBg = Color(0xFF0F1614);
-  static const navBorder = Color(0xFF1A2421);
-  static const navUnselected = Color(0xFF26302D);
+  static const primaryText = Color(0xFFF5F6FA);
+  static const secondaryText = Color(0xFF9BA1B5);
+  static const mutedText = Color(0xFF696E82);
+  static const navBg = Color(0xFF11121A);
+  static const navBorder = Color(0xFF1E202B);
+  static const navUnselected = Color(0xFF4B5162);
 
   static const darkThemeColors = FintechThemeColors(
-    background: Color(0xFF0C1110),
-    cardSurface: Color(0xFF141C1A),
-    cardBorder: Color(0xFF1F2A27),
-    heroTop: Color(0xFF12382F),
-    heroBottom: Color(0xFF0F1E1B),
-    heroBorder: Color(0xFF1E3A34),
-    accent: Color(0xFF3EE6B0),
-    income: Color(0xFF3EE6B0),
-    expense: Color(0xFFFF7A6B),
+    background: Color(0xFF0C0D14),
+    cardSurface: Color(0xFF161722),
+    cardBorder: Color(0xFF222433),
+    heroTop: Color(0xFFB8F58E),
+    heroBottom: Color(0xFF72EEA5),
+    heroBorder: Color(0xFFA2EE98),
+    accent: Color(0xFFC5F877),
+    income: Color(0xFFC5F877),
+    expense: Color(0xFFFF6B6B),
     warning: Color(0xFFFFB020),
-    primaryText: Color(0xFFE8F1EE),
-    secondaryText: Color(0xFFA5B8B3),
-    mutedText: Color(0xFF7D8F8A),
-    navBg: Color(0xFF0F1614),
-    navBorder: Color(0xFF1A2421),
-    navUnselected: Color(0xFF26302D),
-    inputFill: Color(0xFF101715),
+    primaryText: Color(0xFFF5F6FA),
+    secondaryText: Color(0xFF9BA1B5),
+    mutedText: Color(0xFF696E82),
+    navBg: Color(0xFF11121A),
+    navBorder: Color(0xFF1E202B),
+    navUnselected: Color(0xFF4B5162),
+    inputFill: Color(0xFF13141E),
   );
 
   static const lightThemeColors = FintechThemeColors(

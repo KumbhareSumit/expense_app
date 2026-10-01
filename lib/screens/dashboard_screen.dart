@@ -9,6 +9,7 @@ import '../providers/debt_provider.dart';
 import '../providers/budget_provider.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
+import '../models/account_model.dart';
 import '../utils/icon_helper.dart';
 import '../utils/app_theme.dart';
 import '../utils/financial_calculator.dart';
@@ -126,85 +127,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Hero Balance Card
-            BalanceCard(
-              balance: balance,
-              monthlyBudget: currentMonthBudget?.limitAmount,
-              monthlyExpense: currentMonthExpenses,
+            // 1. Stacked Accounts Card (matching Image 1 with interactive smooth transition)
+            EtherealStackedAccountsCard(
+              accounts: accountState.accounts,
+              balances: accountState.balances,
               currency: currency,
+              onAddAccount: () => _showAddAccountDialog(context),
+              onTapAccount: (account) => _showEditAccountDialog(context, account),
             ),
             const SizedBox(height: 16),
 
-            // 2. Account Pills Row (auto-fills for 1-2 accounts, scrollable for 3+ so names never truncate)
-            if (accountState.accounts.isNotEmpty) ...[
-              if (accountState.accounts.length <= 2)
-                Row(
-                  children: [
-                    for (int i = 0; i < accountState.accounts.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 10),
-                      Expanded(
-                        child: Builder(
-                          builder: (context) {
-                            final account = accountState.accounts[i];
-                            final accountBalance =
-                                accountState.balances[account.id] ?? account.openingBalance;
-                            return AccountPill(
-                              name: account.name,
-                              balance: accountBalance,
-                              color: Color(account.colorValue),
-                              currency: currency,
-                              isExpanded: true,
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ],
-                )
-              else
-                SizedBox(
-                  height: 42,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: accountState.accounts.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 10),
-                    itemBuilder: (context, index) {
-                      final account = accountState.accounts[index];
-                      final accountBalance =
-                          accountState.balances[account.id] ?? account.openingBalance;
-                      return AccountPill(
-                        name: account.name,
-                        balance: accountBalance,
-                        color: Color(account.colorValue),
-                        currency: currency,
-                      );
-                    },
-                  ),
-                ),
-              const SizedBox(height: 16),
-            ],
+            // 2. Total Balance Card below Account Cards (matching Image 2)
+            EtherealTotalBalanceCard(
+              balance: balance,
+              currency: currency,
+              subtitle: summary.carriedForwardFromPrevious > 0
+                  ? '+${currency}${NumberFormat('#,##0').format(summary.carriedForwardFromPrevious)} revenue from ${summary.carriedForwardFromMonthName}'
+                  : (incomeSubtitle ?? 'Available balance'),
+              onTransfer: () => _showTransferDialog(context, accountState.accounts),
+              onTopUp: () => _showAddTransaction(context),
+            ),
+            const SizedBox(height: 14),
 
-            // 3. Stat Cards Row (Income & Expense)
+            // 3. Income & Expense Cards below Total Balance Card (matching Image 2)
             Row(
               children: [
                 Expanded(
-                  child: StatCard(
+                  child: EtherealMetricCard(
                     title: 'Income',
                     amount: totalIncome,
-                    color: fintech.income,
-                    icon: Icons.arrow_upward_rounded,
                     currency: currency,
                     subtitle: incomeSubtitle,
+                    badgeText: '+15.7%',
+                    isIncome: true,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: StatCard(
+                  child: EtherealMetricCard(
                     title: 'Expense',
                     amount: totalExpense,
-                    color: fintech.expense,
-                    icon: Icons.arrow_downward_rounded,
                     currency: currency,
+                    badgeText: '-10.7%',
+                    isIncome: false,
                   ),
                 ),
               ],
@@ -686,6 +651,229 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const AddTransactionScreen(),
+    );
+  }
+
+  void _showAddAccountDialog(BuildContext context) {
+    final fintech = context.fintech;
+    final name = TextEditingController();
+    final opening = TextEditingController(text: '0');
+    var type = 'bank';
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add Account'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                style: TextStyle(color: fintech.primaryText),
+                decoration: const InputDecoration(labelText: 'Account name'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: type,
+                dropdownColor: fintech.cardSurface,
+                decoration: const InputDecoration(labelText: 'Type'),
+                items: [
+                  DropdownMenuItem(value: 'cash', child: Text('Cash', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'bank', child: Text('Bank', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'card', child: Text('Credit Card', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'wallet', child: Text('Wallet', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'other', child: Text('Other', style: TextStyle(color: fintech.primaryText))),
+                ],
+                onChanged: (value) => setState(() => type = value ?? type),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: opening,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(color: fintech.primaryText),
+                decoration: const InputDecoration(labelText: 'Opening balance'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
+            ),
+            FilledButton(
+              onPressed: () {
+                final amount = double.tryParse(opening.text) ?? 0;
+                if (name.text.trim().isEmpty) return;
+                ref.read(accountProvider.notifier).addAccount(
+                      AccountModel(
+                        name: name.text.trim(),
+                        type: type,
+                        openingBalance: amount,
+                        colorValue: const Color(0xFF8666F3).toARGB32(),
+                        iconCode: Icons.account_balance_wallet.codePoint,
+                        createdAt: DateTime.now(),
+                      ),
+                    );
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditAccountDialog(BuildContext context, AccountModel account) {
+    final fintech = context.fintech;
+    final name = TextEditingController(text: account.name);
+    final opening = TextEditingController(
+      text: account.openingBalance == 0 ? '0' : account.openingBalance.toStringAsFixed(2),
+    );
+    var type = account.type;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Edit Account'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                style: TextStyle(color: fintech.primaryText),
+                decoration: const InputDecoration(labelText: 'Account name'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: type,
+                dropdownColor: fintech.cardSurface,
+                decoration: const InputDecoration(labelText: 'Type'),
+                items: [
+                  DropdownMenuItem(value: 'cash', child: Text('Cash', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'bank', child: Text('Bank', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'card', child: Text('Credit Card', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'wallet', child: Text('Wallet', style: TextStyle(color: fintech.primaryText))),
+                  DropdownMenuItem(value: 'other', child: Text('Other', style: TextStyle(color: fintech.primaryText))),
+                ],
+                onChanged: (value) => setState(() => type = value ?? type),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: opening,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(color: fintech.primaryText),
+                decoration: const InputDecoration(labelText: 'Opening balance'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
+            ),
+            FilledButton(
+              onPressed: () {
+                final amount = double.tryParse(opening.text) ?? account.openingBalance;
+                if (name.text.trim().isEmpty) return;
+                ref.read(accountProvider.notifier).updateAccount(
+                      account.copyWith(
+                        name: name.text.trim(),
+                        type: type,
+                        openingBalance: amount,
+                      ),
+                    );
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTransferDialog(BuildContext context, List<AccountModel> accounts) {
+    final fintech = context.fintech;
+    if (accounts.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add at least two accounts to transfer money.'),
+        ),
+      );
+      return;
+    }
+    final amount = TextEditingController();
+    var from = accounts.first.id!;
+    var to = accounts[1].id!;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Transfer Money'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int>(
+                initialValue: from,
+                dropdownColor: fintech.cardSurface,
+                decoration: const InputDecoration(labelText: 'From account'),
+                items: accounts
+                    .map(
+                      (a) => DropdownMenuItem(
+                        value: a.id,
+                        child: Text(a.name, style: TextStyle(color: fintech.primaryText)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => from = value!),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                initialValue: to,
+                dropdownColor: fintech.cardSurface,
+                decoration: const InputDecoration(labelText: 'To account'),
+                items: accounts
+                    .map(
+                      (a) => DropdownMenuItem(
+                        value: a.id,
+                        child: Text(a.name, style: TextStyle(color: fintech.primaryText)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => to = value!),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amount,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(color: fintech.primaryText),
+                decoration: const InputDecoration(labelText: 'Amount'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = double.tryParse(amount.text);
+                if (value == null || value <= 0 || from == to) return;
+                ref.read(accountProvider.notifier).transfer(
+                      fromAccountId: from,
+                      toAccountId: to,
+                      amount: value,
+                      date: DateTime.now(),
+                    );
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Transfer'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

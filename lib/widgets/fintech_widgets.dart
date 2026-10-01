@@ -1,6 +1,8 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/account_model.dart';
 import '../utils/app_theme.dart';
 
 /// Clean, reusable Category Icon chip with tint container background
@@ -779,4 +781,717 @@ class PrimaryBottomButton extends StatelessWidget {
     );
   }
 }
+
+/// Ethereal Stacked Accounts Widget matching Image 1
+/// Allows tapping any background card to smoothly transition it to the front
+class EtherealStackedAccountsCard extends StatefulWidget {
+  final List<AccountModel> accounts;
+  final Map<int, double> balances;
+  final String currency;
+  final VoidCallback onAddAccount;
+  final ValueChanged<AccountModel>? onTapAccount;
+
+  const EtherealStackedAccountsCard({
+    super.key,
+    required this.accounts,
+    required this.balances,
+    required this.currency,
+    required this.onAddAccount,
+    this.onTapAccount,
+  });
+
+  @override
+  State<EtherealStackedAccountsCard> createState() =>
+      _EtherealStackedAccountsCardState();
+}
+
+class _EtherealStackedAccountsCardState
+    extends State<EtherealStackedAccountsCard> {
+  late List<int> _cardOrder;
+
+  static const List<List<Color>> _cardGradients = [
+    [Color(0xFF8666F3), Color(0xFFA38DF7), Color(0xFFC3B0FE)], // Purple/Lavender
+    [Color(0xFF7DE4A2), Color(0xFFA2F3BF), Color(0xFFC0F9CE)], // Mint/Spring green
+    [Color(0xFFFF9776), Color(0xFFFFB58B), Color(0xFFFFCE99)], // Warm Peach/Coral
+    [Color(0xFF60A5FA), Color(0xFF93C5FD), Color(0xFFBFDBFE)], // Sky blue
+    [Color(0xFFF472B6), Color(0xFFFBCFE8), Color(0xFFFDE8F3)], // Rose pink
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initOrder();
+  }
+
+  @override
+  void didUpdateWidget(covariant EtherealStackedAccountsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.accounts.length != oldWidget.accounts.length) {
+      _initOrder();
+    }
+  }
+
+  void _initOrder() {
+    _cardOrder = List.generate(widget.accounts.length, (i) => i);
+  }
+
+  void _bringToFront(int rank) {
+    if (rank <= 0 || rank >= _cardOrder.length) return;
+    setState(() {
+      final selected = _cardOrder.removeAt(rank);
+      _cardOrder.insert(0, selected);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fintech = context.fintech;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: fintech.cardSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: fintech.cardBorder, width: 1),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: "My accounts" with count & "Add +" pill button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'My accounts',
+                    style: TextStyle(
+                      color: fintech.primaryText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${widget.accounts.length}',
+                    style: TextStyle(
+                      color: fintech.mutedText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: widget.onAddAccount,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'Add',
+                        style: TextStyle(
+                          color: Color(0xFF0F1016),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.add_rounded,
+                          color: Color(0xFF0F1016), size: 15),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Stack of Cards
+          if (widget.accounts.isEmpty)
+            _buildEmptyCard(fintech)
+          else
+            _buildStackedDeck(fintech),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyCard(FintechThemeColors fintech) {
+    return InkWell(
+      onTap: widget.onAddAccount,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        height: 170,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF8666F3), Color(0xFFA38DF7), Color(0xFFC3B0FE)],
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.credit_card_rounded,
+                size: 38, color: Colors.white),
+            const SizedBox(height: 10),
+            const Text(
+              'No Accounts Added Yet',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tap here to add Cash, Bank, or Wallet',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStackedDeck(FintechThemeColors fintech) {
+    final visibleCount = math.min(widget.accounts.length, 3);
+    const containerHeight = 250.0;
+    const cardHeight = 180.0;
+
+    // We render cards in reverse order (rank visibleCount-1 down to 0)
+    // so rank 0 is at the top of the Flutter stack painting order
+    final stackChildren = <Widget>[];
+
+    for (int rank = visibleCount - 1; rank >= 0; rank--) {
+      final accountIndex = _cardOrder[rank];
+      final account = widget.accounts[accountIndex];
+      final balance =
+          widget.balances[account.id] ?? account.openingBalance;
+      final gradient = _cardGradients[accountIndex % _cardGradients.length];
+
+      double topOffset;
+      double horizontalMargin;
+      double shadowOpacity;
+
+      if (rank == 0) {
+        // Front Card
+        topOffset = visibleCount == 1 ? 0 : 54.0;
+        horizontalMargin = 0.0;
+        shadowOpacity = 0.40;
+      } else if (rank == 1) {
+        // Middle Card
+        topOffset = visibleCount == 2 ? 0 : 27.0;
+        horizontalMargin = 12.0;
+        shadowOpacity = 0.22;
+      } else {
+        // Back Card
+        topOffset = 0.0;
+        horizontalMargin = 24.0;
+        shadowOpacity = 0.14;
+      }
+
+      stackChildren.add(
+        AnimatedPositioned(
+          key: ValueKey(account.id ?? account.name),
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeInOutCubic,
+          top: topOffset,
+          left: horizontalMargin,
+          right: horizontalMargin,
+          height: cardHeight,
+          child: GestureDetector(
+            onTap: () {
+              if (rank > 0) {
+                _bringToFront(rank);
+              } else {
+                widget.onTapAccount?.call(account);
+              }
+            },
+            child: _buildCardItem(
+              account: account,
+              balance: balance,
+              gradient: gradient,
+              shadowOpacity: shadowOpacity,
+              isFront: rank == 0,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: visibleCount == 1 ? cardHeight : containerHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: stackChildren,
+      ),
+    );
+  }
+
+  Widget _buildCardItem({
+    required AccountModel account,
+    required double balance,
+    required List<Color> gradient,
+    required double shadowOpacity,
+    required bool isFront,
+  }) {
+    final formattedBalance =
+        NumberFormat('#,##0.00').format(balance.abs());
+    final sign = balance < 0 ? '-' : '';
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradient,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: shadowOpacity),
+            blurRadius: isFront ? 18 : 10,
+            offset: Offset(0, isFront ? 8 : 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // Top Row: Account Name & masked card number
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        _getAccountIcon(account.type),
+                        size: 15,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      account.name.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '•••• ${(account.id ?? 1).toString().padLeft(4, '0')}',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Bottom Frosted Glass Pocket (as shown in Image 1)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.28),
+                        Colors.white.withValues(alpha: 0.12),
+                      ],
+                    ),
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.35),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Amount in place of card number (User requested)
+                      Text(
+                        '$sign${widget.currency} $formattedBalance',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      // Holder name & Type
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            account.type.toUpperCase(),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.82),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                          Text(
+                            isFront ? 'TAP TO MANAGE' : 'TAP TO SELECT',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.72),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getAccountIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'bank':
+        return Icons.account_balance_rounded;
+      case 'card':
+        return Icons.credit_card_rounded;
+      case 'wallet':
+        return Icons.account_balance_wallet_rounded;
+      case 'cash':
+        return Icons.payments_rounded;
+      default:
+        return Icons.account_balance_wallet_rounded;
+    }
+  }
+}
+
+/// Vibrant Ethereal Total Balance Card matching Image 2
+class EtherealTotalBalanceCard extends StatelessWidget {
+  final double balance;
+  final String currency;
+  final String? subtitle;
+  final VoidCallback onTransfer;
+  final VoidCallback onTopUp;
+
+  const EtherealTotalBalanceCard({
+    super.key,
+    required this.balance,
+    this.currency = '₹',
+    this.subtitle,
+    required this.onTransfer,
+    required this.onTopUp,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final formattedBalance =
+        NumberFormat('#,##0.00').format(balance.abs());
+    final sign = balance < 0 ? '-' : '';
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFB8F58E),
+            Color(0xFF96F2AC),
+            Color(0xFF72EEA5),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF72EEA5).withValues(alpha: 0.30),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Title
+          const Text(
+            'Total balance',
+            style: TextStyle(
+              color: Color(0xFF0F1E13),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Main Big Balance
+          Text(
+            '$sign$currency$formattedBalance',
+            style: const TextStyle(
+              color: Color(0xFF0F1E13),
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Subtitle / Revenue info
+          Text(
+            subtitle ?? 'Available balance',
+            style: const TextStyle(
+              color: Color(0xFF1B3D23),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Action Pills Row: Transfer (black pill) & Add (white pill)
+          Row(
+            children: [
+              InkWell(
+                onTap: onTransfer,
+                borderRadius: BorderRadius.circular(22),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0E1015),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'Transfer',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                      Icon(Icons.swap_horiz_rounded,
+                          color: Colors.white, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              InkWell(
+                onTap: onTopUp,
+                borderRadius: BorderRadius.circular(22),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'Add',
+                        style: TextStyle(
+                          color: Color(0xFF0E1015),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(width: 6),
+                      Icon(Icons.add_rounded,
+                          color: Color(0xFF0E1015), size: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ethereal Metric Card for Income & Expense matching Image 2
+class EtherealMetricCard extends StatelessWidget {
+  final String title;
+  final double amount;
+  final String currency;
+  final String? subtitle;
+  final String badgeText;
+  final bool isIncome;
+  final VoidCallback? onTap;
+
+  const EtherealMetricCard({
+    super.key,
+    required this.title,
+    required this.amount,
+    this.currency = '₹',
+    this.subtitle,
+    required this.badgeText,
+    required this.isIncome,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fintech = context.fintech;
+    final formattedAmount =
+        NumberFormat('#,##0.00').format(amount.abs());
+    final badgeColor = isIncome ? fintech.income : fintech.expense;
+    final badgeBg = isIncome
+        ? const Color(0xFF1E3319)
+        : const Color(0xFF331919);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: fintech.cardSurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: fintech.cardBorder, width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Title & Badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: fintech.mutedText,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: badgeColor.withValues(alpha: 0.3),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: TextStyle(
+                      color: badgeColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Amount
+            Text(
+              '${isIncome ? '+' : '-'}$currency$formattedAmount',
+              style: TextStyle(
+                color: fintech.primaryText,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(height: 4),
+
+            // Subtitle
+            Text(
+              subtitle ??
+                  (isIncome ? "This month's income" : "This month's expense"),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: fintech.mutedText,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
