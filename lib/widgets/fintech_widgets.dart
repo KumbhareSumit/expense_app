@@ -810,12 +810,26 @@ class _EtherealStackedAccountsCardState
   late List<int> _cardOrder;
 
   static const List<List<Color>> _cardGradients = [
-    [Color(0xFF8666F3), Color(0xFFA38DF7), Color(0xFFC3B0FE)], // Purple/Lavender
-    [Color(0xFF7DE4A2), Color(0xFFA2F3BF), Color(0xFFC0F9CE)], // Mint/Spring green
-    [Color(0xFFFF9776), Color(0xFFFFB58B), Color(0xFFFFCE99)], // Warm Peach/Coral
-    [Color(0xFF60A5FA), Color(0xFF93C5FD), Color(0xFFBFDBFE)], // Sky blue
-    [Color(0xFFF472B6), Color(0xFFFBCFE8), Color(0xFFFDE8F3)], // Rose pink
+    [Color(0xFF1E1B4B), Color(0xFF312E81), Color(0xFF4338CA)], // Deep Indigo Metal
+    [Color(0xFF064E3B), Color(0xFF047857), Color(0xFF10B981)], // Emerald Fintech
+    [Color(0xFF18181B), Color(0xFF27272A), Color(0xFF3F3F46)], // Obsidian Carbon
+    [Color(0xFF881337), Color(0xFF9F1239), Color(0xFFBE123C)], // Crimson Luxury
+    [Color(0xFF1E3A8A), Color(0xFF1D4ED8), Color(0xFF3B82F6)], // Royal Sapphire
+    [Color(0xFF78350F), Color(0xFF92400E), Color(0xFFD97706)], // Amber Gold
+    [Color(0xFF0F766E), Color(0xFF14B8A6), Color(0xFF2DD4BF)], // Midnight Teal
+    [Color(0xFF334155), Color(0xFF475569), Color(0xFF64748B)], // Titanium Slate
   ];
+
+  List<Color> _getAccountGradient(AccountModel account, int fallbackIndex) {
+    if (account.colorValue != 0) {
+      final base = Color(account.colorValue);
+      final hsl = HSLColor.fromColor(base);
+      final darker = hsl.withLightness((hsl.lightness - 0.12).clamp(0.0, 1.0)).toColor();
+      final lighter = hsl.withLightness((hsl.lightness + 0.14).clamp(0.0, 1.0)).toColor();
+      return [darker, base, lighter];
+    }
+    return _cardGradients[fallbackIndex % _cardGradients.length];
+  }
 
   @override
   void initState() {
@@ -952,7 +966,7 @@ class _EtherealStackedAccountsCardState
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF8666F3), Color(0xFFA38DF7), Color(0xFFC3B0FE)],
+            colors: [Color(0xFF1E1B4B), Color(0xFF312E81), Color(0xFF4338CA)],
           ),
         ),
         padding: const EdgeInsets.all(20),
@@ -998,7 +1012,7 @@ class _EtherealStackedAccountsCardState
       final account = widget.accounts[accountIndex];
       final balance =
           widget.balances[account.id] ?? account.openingBalance;
-      final gradient = _cardGradients[accountIndex % _cardGradients.length];
+      final gradient = _getAccountGradient(account, accountIndex);
 
       double topOffset;
       double horizontalMargin;
@@ -1098,6 +1112,23 @@ class _EtherealStackedAccountsCardState
         NumberFormat('#,##0.00').format(balance.abs());
     final sign = balance < 0 ? '-' : '';
 
+    // Calculate background brightness to ensure 100% crystal-clear contrast
+    final avgLuminance = (gradient.first.computeLuminance() * 0.4 +
+            gradient[gradient.length ~/ 2].computeLuminance() * 0.3 +
+            gradient.last.computeLuminance() * 0.3);
+    final isLight = avgLuminance > 0.52;
+
+    final primaryTextColor = isLight ? const Color(0xFF0F172A) : Colors.white;
+    final secondaryTextColor = isLight
+        ? const Color(0xFF334155)
+        : Colors.white.withValues(alpha: 0.85);
+    final iconBgColor = isLight
+        ? Colors.black.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.22);
+    final chipBorderColor = isLight
+        ? const Color(0xFFB8860B).withValues(alpha: 0.8)
+        : const Color(0xFFFFE082).withValues(alpha: 0.9);
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -1116,53 +1147,131 @@ class _EtherealStackedAccountsCardState
       ),
       child: Stack(
         children: [
-          // Top Row: Account Name & masked card number
+          // Subtle realistic specular diagonal sheen
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: isLight ? 0.20 : 0.12),
+                      Colors.white.withValues(alpha: 0.0),
+                      Colors.black.withValues(alpha: isLight ? 0.04 : 0.15),
+                    ],
+                    stops: const [0.0, 0.45, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Top Row: Account Name, Real EMV Chip, NFC & masked card number
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        _getAccountIcon(account.type),
-                        size: 15,
-                        color: Colors.white,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: iconBgColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            _getAccountIcon(account.type),
+                            size: 15,
+                            color: primaryTextColor,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          account.name.toUpperCase(),
+                          style: TextStyle(
+                            color: primaryTextColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
                     Text(
-                      account.name.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
+                      '•••• ${(account.id ?? 1).toString().padLeft(4, '0')}',
+                      style: TextStyle(
+                        color: secondaryTextColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
                       ),
                     ),
                   ],
                 ),
-                Text(
-                  '•••• ${(account.id ?? 1).toString().padLeft(4, '0')}',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                  ),
+                const SizedBox(height: 10),
+
+                // Realistic EMV Chip & Contactless NFC icon
+                Row(
+                  children: [
+                    // Metallic Gold EMV Chip
+                    Container(
+                      width: 28,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFFFFE082),
+                            Color(0xFFD4AF37),
+                            Color(0xFFA67C00),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: chipBorderColor,
+                          width: 0.6,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 14,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  width: 0.5,
+                                ),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Contactless NFC Symbol
+                    Icon(
+                      Icons.contactless_rounded,
+                      size: 16,
+                      color: secondaryTextColor.withValues(alpha: 0.8),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
 
-          // Bottom Frosted Glass Pocket (as shown in Image 1)
+          // Bottom Frosted Glass Pocket (as shown in fintech design)
           Positioned(
             left: 0,
             right: 0,
@@ -1181,14 +1290,21 @@ class _EtherealStackedAccountsCardState
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.28),
-                        Colors.white.withValues(alpha: 0.12),
-                      ],
+                      colors: isLight
+                          ? [
+                              Colors.black.withValues(alpha: 0.10),
+                              Colors.black.withValues(alpha: 0.04),
+                            ]
+                          : [
+                              Colors.white.withValues(alpha: 0.28),
+                              Colors.white.withValues(alpha: 0.12),
+                            ],
                     ),
                     border: Border(
                       top: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.35),
+                        color: isLight
+                            ? Colors.black.withValues(alpha: 0.12)
+                            : Colors.white.withValues(alpha: 0.35),
                         width: 1,
                       ),
                     ),
@@ -1200,12 +1316,12 @@ class _EtherealStackedAccountsCardState
                       // Amount in place of card number (User requested)
                       Text(
                         '$sign${widget.currency} $formattedBalance',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: primaryTextColor,
                           fontSize: 19,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.8,
-                          fontFeatures: [FontFeature.tabularFigures()],
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
                       const SizedBox(height: 5),
@@ -1216,7 +1332,7 @@ class _EtherealStackedAccountsCardState
                           Text(
                             account.type.toUpperCase(),
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.82),
+                              color: secondaryTextColor,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 0.4,
@@ -1225,7 +1341,7 @@ class _EtherealStackedAccountsCardState
                           Text(
                             isFront ? 'SWIPE / TAP FOR NEXT' : 'TAP TO SELECT',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.72),
+                              color: secondaryTextColor.withValues(alpha: 0.85),
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.4,
