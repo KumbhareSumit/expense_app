@@ -1265,16 +1265,18 @@ class EtherealTotalBalanceCard extends StatelessWidget {
   final double balance;
   final String currency;
   final String? subtitle;
-  final VoidCallback onTransfer;
-  final VoidCallback onTopUp;
+  final VoidCallback? onTransfer;
+  final VoidCallback? onTopUp;
+  final bool showActions;
 
   const EtherealTotalBalanceCard({
     super.key,
     required this.balance,
     this.currency = '₹',
     this.subtitle,
-    required this.onTransfer,
-    required this.onTopUp,
+    this.onTransfer,
+    this.onTopUp,
+    this.showActions = true,
   });
 
   @override
@@ -1282,6 +1284,8 @@ class EtherealTotalBalanceCard extends StatelessWidget {
     final formattedBalance =
         NumberFormat('#,##0.00').format(balance.abs());
     final sign = balance < 0 ? '-' : '';
+    final bool hasActions =
+        showActions && onTransfer != null && onTopUp != null;
 
     return Container(
       width: double.infinity,
@@ -1304,7 +1308,12 @@ class EtherealTotalBalanceCard extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        hasActions ? 20 : 16,
+        20,
+        hasActions ? 20 : 16,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1317,7 +1326,7 @@ class EtherealTotalBalanceCard extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           // Main Big Balance
           Text(
@@ -1341,77 +1350,79 @@ class EtherealTotalBalanceCard extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 18),
 
           // Action Pills Row: Transfer (black pill) & Add (white pill)
-          Row(
-            children: [
-              InkWell(
-                onTap: onTransfer,
-                borderRadius: BorderRadius.circular(22),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0E1015),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        'Transfer',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+          if (hasActions) ...[
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                InkWell(
+                  onTap: onTransfer,
+                  borderRadius: BorderRadius.circular(22),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0E1015),
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Text(
+                          'Transfer',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 6),
-                      Icon(Icons.swap_horiz_rounded,
-                          color: Colors.white, size: 16),
-                    ],
+                        SizedBox(width: 6),
+                        Icon(Icons.swap_horiz_rounded,
+                            color: Colors.white, size: 16),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              InkWell(
-                onTap: onTopUp,
-                borderRadius: BorderRadius.circular(22),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        'Add',
-                        style: TextStyle(
-                          color: Color(0xFF0E1015),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                const SizedBox(width: 10),
+                InkWell(
+                  onTap: onTopUp,
+                  borderRadius: BorderRadius.circular(22),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
-                      SizedBox(width: 6),
-                      Icon(Icons.add_rounded,
-                          color: Color(0xFF0E1015), size: 16),
-                    ],
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Text(
+                          'Add',
+                          style: TextStyle(
+                            color: Color(0xFF0E1015),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(width: 6),
+                        Icon(Icons.add_rounded,
+                            color: Color(0xFF0E1015), size: 16),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );

@@ -6,7 +6,6 @@ import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/account_provider.dart';
 import '../providers/debt_provider.dart';
-import '../providers/budget_provider.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../models/account_model.dart';
@@ -26,9 +25,8 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   FintechThemeColors get fintech => context.fintech;
-  String _selectedPeriod = 'Monthly';
-  DateTime _selectedDate = DateTime.now();
-  final List<String> _periods = ['Daily', 'Weekly', 'Monthly', 'Yearly'];
+  final String _selectedPeriod = 'Monthly';
+  final DateTime _selectedDate = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +34,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final categories = ref.watch(categoryProvider);
     final settings = ref.watch(settingsProvider);
     final debts = ref.watch(debtProvider);
-    final budgets = ref.watch(budgetProvider);
     final currency = settings.currencySymbol;
     final accountState = ref.watch(accountProvider);
 
@@ -59,13 +56,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final incomeSubtitle = summary.getIncomeSubtitle(currency);
 
     final now = DateTime.now();
-    final currentMonthBudget = budgets
-        .where((b) => b.month == now.month && b.year == now.year && b.categoryId == null)
-        .firstOrNull;
-
-    final currentMonthExpenses = transactions
-        .where((t) => t.type == 'expense' && t.date.month == now.month && t.date.year == now.year)
-        .fold(0.0, (sum, t) => sum + t.amount);
 
     double owedToMe = 0;
     double iOwe = 0;
@@ -141,10 +131,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               balance: balance,
               currency: currency,
               subtitle: summary.carriedForwardFromPrevious > 0
-                  ? '+${currency}${NumberFormat('#,##0').format(summary.carriedForwardFromPrevious)} revenue from ${summary.carriedForwardFromMonthName}'
+                  ? '+$currency${NumberFormat('#,##0').format(summary.carriedForwardFromPrevious)} revenue from ${summary.carriedForwardFromMonthName}'
                   : (incomeSubtitle ?? 'Available balance'),
-              onTransfer: () => _showTransferDialog(context, accountState.accounts),
-              onTopUp: () => _showAddTransaction(context),
+              showActions: false,
             ),
             const SizedBox(height: 14),
 
@@ -193,32 +182,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
             const SizedBox(height: 20),
 
-            // 5. Period Selector & Date Navigator
-            _buildPeriodSelector(),
-            _buildDateNavigator(),
-            const SizedBox(height: 20),
-
-            // 6. Recent Transactions Header & List
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Recent',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: fintech.primaryText,
-                  ),
-                ),
-                Text(
-                  _selectedPeriod,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: fintech.mutedText,
-                  ),
-                ),
-              ],
+            // 5. Recent Transactions Header & List
+            Text(
+              'Recent',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: fintech.primaryText,
+              ),
             ),
 
             const SizedBox(height: 12),
@@ -317,173 +288,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildPeriodSelector() {
-    final fintech = context.fintech;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: fintech.cardSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: fintech.cardBorder, width: 1),
-      ),
-      child: Row(
-        children: _periods.map((period) {
-          final isSelected = _selectedPeriod == period;
-          return Expanded(
-            child: InkWell(
-              onTap: () => setState(() {
-                _selectedPeriod = period;
-                _selectedDate = DateTime.now();
-              }),
-              borderRadius: BorderRadius.circular(9),
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? (isDark ? const Color(0xFF12382F) : fintech.accent.withValues(alpha: 0.15))
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Text(
-                  period,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? fintech.accent : fintech.mutedText,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildDateNavigator() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-
-    String label = '';
-    if (_selectedPeriod == 'Daily') {
-      if (target.isAtSameMomentAs(today)) {
-        label = 'Today, ${DateFormat('d MMM yyyy').format(_selectedDate)}';
-      } else if (target.isAtSameMomentAs(today.subtract(const Duration(days: 1)))) {
-        label = 'Yesterday, ${DateFormat('d MMM yyyy').format(_selectedDate)}';
-      } else {
-        label = DateFormat('EEE, d MMM yyyy').format(_selectedDate);
-      }
-    } else if (_selectedPeriod == 'Weekly') {
-      final startOfWeek = target.subtract(Duration(days: target.weekday - 1));
-      final endOfWeek = startOfWeek.add(const Duration(days: 6));
-      final isCurrentWeek = !today.isBefore(startOfWeek) && !today.isAfter(endOfWeek);
-      if (isCurrentWeek) {
-        final rolling7Start = today.subtract(const Duration(days: 6));
-        label = 'Past 7 Days (${DateFormat('d MMM').format(rolling7Start)} - ${DateFormat('d MMM').format(today)})';
-      } else {
-        label = '${DateFormat('d MMM').format(startOfWeek)} - ${DateFormat('d MMM yyyy').format(endOfWeek)}';
-      }
-    } else if (_selectedPeriod == 'Monthly') {
-      label = DateFormat('MMMM yyyy').format(_selectedDate);
-    } else if (_selectedPeriod == 'Yearly') {
-      label = DateFormat('yyyy').format(_selectedDate);
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
-        color: fintech.cardSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: fintech.cardBorder, width: 1),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(Icons.chevron_left_rounded, size: 22, color: fintech.mutedText),
-            onPressed: () => _navigatePeriod(-1),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
-            splashRadius: 18,
-          ),
-          Expanded(
-            child: InkWell(
-              onTap: _pickDate,
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.calendar_today_outlined, size: 13, color: fintech.accent),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: fintech.primaryText,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.chevron_right_rounded, size: 22, color: fintech.mutedText),
-            onPressed: () => _navigatePeriod(1),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
-            splashRadius: 18,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigatePeriod(int direction) {
-    setState(() {
-      if (_selectedPeriod == 'Daily') {
-        _selectedDate = _selectedDate.add(Duration(days: direction));
-      } else if (_selectedPeriod == 'Weekly') {
-        _selectedDate = _selectedDate.add(Duration(days: direction * 7));
-      } else if (_selectedPeriod == 'Monthly') {
-        _selectedDate = DateTime(
-          _selectedDate.year,
-          _selectedDate.month + direction,
-          _selectedDate.day.clamp(1, 28),
-        );
-      } else if (_selectedPeriod == 'Yearly') {
-        _selectedDate = DateTime(
-          _selectedDate.year + direction,
-          _selectedDate.month,
-          _selectedDate.day.clamp(1, 28),
-        );
-      }
-    });
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
   }
 
   Widget _buildTransactionList(
@@ -722,157 +526,5 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
   }
-
-  void _showEditAccountDialog(BuildContext context, AccountModel account) {
-    final fintech = context.fintech;
-    final name = TextEditingController(text: account.name);
-    final opening = TextEditingController(
-      text: account.openingBalance == 0 ? '0' : account.openingBalance.toStringAsFixed(2),
-    );
-    var type = account.type;
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Edit Account'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                style: TextStyle(color: fintech.primaryText),
-                decoration: const InputDecoration(labelText: 'Account name'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: type,
-                dropdownColor: fintech.cardSurface,
-                decoration: const InputDecoration(labelText: 'Type'),
-                items: [
-                  DropdownMenuItem(value: 'cash', child: Text('Cash', style: TextStyle(color: fintech.primaryText))),
-                  DropdownMenuItem(value: 'bank', child: Text('Bank', style: TextStyle(color: fintech.primaryText))),
-                  DropdownMenuItem(value: 'card', child: Text('Credit Card', style: TextStyle(color: fintech.primaryText))),
-                  DropdownMenuItem(value: 'wallet', child: Text('Wallet', style: TextStyle(color: fintech.primaryText))),
-                  DropdownMenuItem(value: 'other', child: Text('Other', style: TextStyle(color: fintech.primaryText))),
-                ],
-                onChanged: (value) => setState(() => type = value ?? type),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: opening,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: TextStyle(color: fintech.primaryText),
-                decoration: const InputDecoration(labelText: 'Opening balance'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
-            ),
-            FilledButton(
-              onPressed: () {
-                final amount = double.tryParse(opening.text) ?? account.openingBalance;
-                if (name.text.trim().isEmpty) return;
-                ref.read(accountProvider.notifier).updateAccount(
-                      account.copyWith(
-                        name: name.text.trim(),
-                        type: type,
-                        openingBalance: amount,
-                      ),
-                    );
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showTransferDialog(BuildContext context, List<AccountModel> accounts) {
-    final fintech = context.fintech;
-    if (accounts.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Add at least two accounts to transfer money.'),
-        ),
-      );
-      return;
-    }
-    final amount = TextEditingController();
-    var from = accounts.first.id!;
-    var to = accounts[1].id!;
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Transfer Money'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                initialValue: from,
-                dropdownColor: fintech.cardSurface,
-                decoration: const InputDecoration(labelText: 'From account'),
-                items: accounts
-                    .map(
-                      (a) => DropdownMenuItem(
-                        value: a.id,
-                        child: Text(a.name, style: TextStyle(color: fintech.primaryText)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => from = value!),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: to,
-                dropdownColor: fintech.cardSurface,
-                decoration: const InputDecoration(labelText: 'To account'),
-                items: accounts
-                    .map(
-                      (a) => DropdownMenuItem(
-                        value: a.id,
-                        child: Text(a.name, style: TextStyle(color: fintech.primaryText)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => to = value!),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amount,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: TextStyle(color: fintech.primaryText),
-                decoration: const InputDecoration(labelText: 'Amount'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
-            ),
-            FilledButton(
-              onPressed: () {
-                final value = double.tryParse(amount.text);
-                if (value == null || value <= 0 || from == to) return;
-                ref.read(accountProvider.notifier).transfer(
-                      fromAccountId: from,
-                      toAccountId: to,
-                      amount: value,
-                      date: DateTime.now(),
-                    );
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Transfer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
+
