@@ -14,7 +14,6 @@ import '../utils/app_theme.dart';
 import '../utils/icon_helper.dart';
 import '../utils/financial_calculator.dart';
 import '../widgets/fintech_widgets.dart';
-import 'add_transaction_screen.dart';
 
 enum AnalysisPeriod { daily, weekly, monthly, yearly }
 
@@ -26,8 +25,21 @@ class AnalysisScreen extends ConsumerStatefulWidget {
 }
 
 class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
+  final GlobalKey<RevenueFlowCategoryChartState> _revenueFlowKey =
+      GlobalKey<RevenueFlowCategoryChartState>();
+  DateTime _lastRiseTriggerTime =
+      DateTime.now().subtract(const Duration(seconds: 5));
+
   AnalysisPeriod _selectedPeriod = AnalysisPeriod.monthly;
   DateTime _selectedDate = DateTime.now();
+
+  void _triggerChartRiseAnimation() {
+    final now = DateTime.now();
+    if (now.difference(_lastRiseTriggerTime).inMilliseconds > 450) {
+      _lastRiseTriggerTime = now;
+      _revenueFlowKey.currentState?.animateRise();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,17 +78,87 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         daysElapsed = 7;
         break;
       case AnalysisPeriod.monthly:
-        final isCurrentMonth = _selectedDate.year == now.year && _selectedDate.month == now.month;
-        daysElapsed = isCurrentMonth ? now.day : DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
+        final isCurrentMonth =
+            _selectedDate.year == now.year && _selectedDate.month == now.month;
+        daysElapsed = isCurrentMonth
+            ? now.day
+            : DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
         break;
       case AnalysisPeriod.yearly:
         final isCurrentYear = _selectedDate.year == now.year;
-        daysElapsed = isCurrentYear ? (now.difference(DateTime(now.year, 1, 1)).inDays + 1) : 365;
+        daysElapsed = isCurrentYear
+            ? (now.difference(DateTime(now.year, 1, 1)).inDays + 1)
+            : 365;
         break;
     }
-    
+
     final dailyAverage = totalExpense / (daysElapsed > 0 ? daysElapsed : 1);
     final fintech = context.fintech;
+
+    // Aggregate category revenue / spending flow items for the Revenue Flow bar chart
+    final expenseTransactions =
+        filteredTransactions.where((t) => t.type == 'expense').toList();
+    final Map<int, double> categorySums = {};
+    for (final t in expenseTransactions) {
+      categorySums[t.categoryId] =
+          (categorySums[t.categoryId] ?? 0) + t.amount;
+    }
+
+    final sortedCatEntries = categorySums.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final List<RevenueFlowCategoryItem> flowItems = [];
+
+    // Add categories with spending in this period
+    for (final entry in sortedCatEntries.take(5)) {
+      final cat = categories.firstWhere(
+        (c) => c.id == entry.key,
+        orElse: () => CategoryModel(
+          name: 'Category',
+          type: 'expense',
+          colorValue: Colors.purple.toARGB32(),
+          iconCode: Icons.category.codePoint,
+          isCustom: false,
+        ),
+      );
+      final pct = totalExpense > 0 ? (entry.value / totalExpense * 100) : 0.0;
+      flowItems.add(RevenueFlowCategoryItem(
+        categoryName: cat.name,
+        amount: entry.value,
+        percentage: pct,
+        color: Color(cat.colorValue),
+        icon: IconHelper.getIcon(cat.iconCode),
+      ));
+    }
+
+    // Pad with other user categories up to 5 so 5 pill bars always render with stadium balance
+    if (flowItems.length < 5) {
+      final usedCatIds = sortedCatEntries.map((e) => e.key).toSet();
+      final otherCats =
+          categories.where((c) => !usedCatIds.contains(c.id)).toList();
+      for (final cat in otherCats) {
+        if (flowItems.length >= 5) break;
+        flowItems.add(RevenueFlowCategoryItem(
+          categoryName: cat.name,
+          amount: 0.0,
+          percentage: 0.0,
+          color: Color(cat.colorValue),
+          icon: IconHelper.getIcon(cat.iconCode),
+        ));
+      }
+    }
+
+    // Fallback if no categories configured yet
+    if (flowItems.isEmpty) {
+      const defaultNames = ['Food', 'Bills', 'Shop', 'Travel', 'Health'];
+      for (final name in defaultNames) {
+        flowItems.add(RevenueFlowCategoryItem(
+          categoryName: name,
+          amount: 0.0,
+          percentage: 0.0,
+        ));
+      }
+    }
 
     return Scaffold(
       backgroundColor: fintech.background,
@@ -92,78 +174,107 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 100.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Period Selector Segmented Bar & Date Navigator
-            _buildPeriodSelector(),
-            _buildDateNavigator(),
-            const SizedBox(height: 16),
-
-            // 2. Summary Stats Cards Row
-            Row(
+      body: Listener(
+        onPointerMove: (pointerEvent) {
+          // When pointer moves upwards (dy < -4.0), trigger the down-to-up rise animation
+          if (pointerEvent.delta.dy < -4.0) {
+            _triggerChartRiseAnimation();
+          }
+        },
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification is ScrollUpdateNotification) {
+              if (notification.scrollDelta != null &&
+                  notification.scrollDelta! > 6.0) {
+                _triggerChartRiseAnimation();
+              }
+            }
+            return false;
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 100.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: StatCard(
-                    title: 'Total savings',
-                    amount: savings,
-                    color: savings >= 0 ? fintech.income : fintech.expense,
-                    currency: settings.currencySymbol,
+                // 1. Period Selector Segmented Bar & Date Navigator
+                _buildPeriodSelector(),
+                _buildDateNavigator(),
+                const SizedBox(height: 16),
+
+                // 2. Summary Stats Cards Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: StatCard(
+                        title: 'Total savings',
+                        amount: savings,
+                        color: savings >= 0 ? fintech.income : fintech.expense,
+                        currency: settings.currencySymbol,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: StatCard(
+                        title: 'Daily average',
+                        amount: dailyAverage,
+                        color: fintech.primaryText,
+                        currency: settings.currencySymbol,
+                        subtitle: '/ day',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // 3. Revenue Flow Category Chart (Ethereal Design matching screenshot)
+                RevenueFlowCategoryChart(
+                  key: _revenueFlowKey,
+                  items: flowItems,
+                  currency: settings.currencySymbol,
+                  periodLabel: periodStr,
+                  title: 'Revenue flow',
+                  onPeriodTap: () {
+                    setState(() {
+                      _selectedPeriod = switch (_selectedPeriod) {
+                        AnalysisPeriod.daily => AnalysisPeriod.weekly,
+                        AnalysisPeriod.weekly => AnalysisPeriod.monthly,
+                        AnalysisPeriod.monthly => AnalysisPeriod.yearly,
+                        AnalysisPeriod.yearly => AnalysisPeriod.daily,
+                      };
+                      _selectedDate = DateTime.now();
+                    });
+                    _triggerChartRiseAnimation();
+                  },
+                  onHeaderActionTap: () {
+                    _triggerChartRiseAnimation();
+                  },
+                ),
+                const SizedBox(height: 24),
+
+                // 4. Expense Breakdown Header
+                Text(
+                  'Expense Breakdown',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: fintech.primaryText,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StatCard(
-                    title: 'Daily average',
-                    amount: dailyAverage,
-                    color: fintech.primaryText,
-                    currency: settings.currencySymbol,
-                    subtitle: '/ day',
-                  ),
+                const SizedBox(height: 14),
+
+                // 5. Preserved Circular Infographic Chart in Fintech Container
+                _buildInfographicChart(
+                  expenseTransactions,
+                  categories,
+                  settings.currencySymbol,
+                  totalExpense,
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-
-            // 3. Expense Breakdown Header
-            Text(
-              'Expense Breakdown',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: fintech.primaryText,
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // 4. Preserved Circular Infographic Chart in Fintech Container
-            _buildInfographicChart(
-              filteredTransactions.where((t) => t.type == 'expense').toList(),
-              categories,
-              settings.currencySymbol,
-              totalExpense,
-            ),
-            const SizedBox(height: 24),
-
-            // 5. Transactions Section
-            Text(
-              'Transactions',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: fintech.primaryText,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            _buildTransactionList(
-              filteredTransactions,
-              categories,
-              settings.currencySymbol,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -622,135 +733,6 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildTransactionList(
-    List<TransactionModel> transactions,
-    List<CategoryModel> categories,
-    String currency,
-  ) {
-    final fintech = context.fintech;
-
-    if (transactions.isEmpty) {
-      final periodName = switch (_selectedPeriod) {
-        AnalysisPeriod.daily => 'day',
-        AnalysisPeriod.weekly => 'week',
-        AnalysisPeriod.monthly => 'month',
-        AnalysisPeriod.yearly => 'year',
-      };
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-        decoration: BoxDecoration(
-          color: fintech.cardSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: fintech.cardBorder, width: 1),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.receipt_long_outlined, size: 36, color: fintech.mutedText),
-            const SizedBox(height: 8),
-            Text(
-              'No transactions for this $periodName',
-              style: TextStyle(
-                color: fintech.primaryText,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _selectedPeriod == AnalysisPeriod.daily
-                  ? 'Use ‹ or › to view other days or add a transaction'
-                  : 'Use ‹ or › to browse other dates',
-              style: TextStyle(color: fintech.mutedText, fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: fintech.cardSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: fintech.cardBorder, width: 1),
-      ),
-      child: Column(
-        children: transactions.map((t) {
-          final category = categories.firstWhere(
-            (item) => item.id == t.categoryId,
-            orElse: () => CategoryModel(
-              name: 'Unknown',
-              iconCode: Icons.help.codePoint,
-              colorValue: Colors.grey.toARGB32(),
-              type: t.type,
-              isCustom: false,
-            ),
-          );
-
-          final title = category.name.isNotEmpty ? category.name : (t.note.isNotEmpty ? t.note : 'Transaction');
-          final subtitle = t.note.isNotEmpty
-              ? '${t.note} · ${DateFormat('MMM dd, yyyy').format(t.date)}'
-              : DateFormat('MMM dd, yyyy').format(t.date);
-
-          return TransactionTile(
-            title: title,
-            subtitle: subtitle,
-            amount: t.amount,
-            type: t.type,
-            categoryColor: Color(category.colorValue),
-            icon: IconHelper.getIcon(category.iconCode),
-            currency: currency,
-            onTap: () => _editTransaction(t),
-            onLongPress: () => _confirmDeleteTransaction(t),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  void _editTransaction(TransactionModel transaction) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AddTransactionScreen(transaction: transaction),
-    );
-  }
-
-  Future<void> _confirmDeleteTransaction(TransactionModel transaction) async {
-    final fintech = context.fintech;
-
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Transaction'),
-        content: const Text('Are you sure you want to delete this transaction?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: fintech.mutedText)),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: fintech.expense),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldDelete == true && transaction.id != null) {
-      await ref.read(transactionProvider.notifier).deleteTransaction(transaction.id!);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaction deleted')),
-        );
-      }
-    }
   }
 }
 

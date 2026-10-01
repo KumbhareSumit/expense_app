@@ -843,6 +843,14 @@ class _EtherealStackedAccountsCardState
     });
   }
 
+  void _nextCard() {
+    if (_cardOrder.length <= 1) return;
+    setState(() {
+      final front = _cardOrder.removeAt(0);
+      _cardOrder.add(front);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final fintech = context.fintech;
@@ -1023,11 +1031,24 @@ class _EtherealStackedAccountsCardState
           right: horizontalMargin,
           height: cardHeight,
           child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () {
-              if (rank > 0) {
-                _bringToFront(rank);
+              if (rank == 0) {
+                _nextCard();
               } else {
-                widget.onTapAccount?.call(account);
+                _bringToFront(rank);
+              }
+            },
+            onVerticalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity.abs() > 50) {
+                _nextCard();
+              }
+            },
+            onHorizontalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity.abs() > 50) {
+                _nextCard();
               }
             },
             child: _buildCardItem(
@@ -1042,11 +1063,26 @@ class _EtherealStackedAccountsCardState
       );
     }
 
-    return SizedBox(
-      height: visibleCount == 1 ? cardHeight : containerHeight,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: stackChildren,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity.abs() > 50) {
+          _nextCard();
+        }
+      },
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        if (velocity.abs() > 50) {
+          _nextCard();
+        }
+      },
+      child: SizedBox(
+        height: visibleCount == 1 ? cardHeight : containerHeight,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: stackChildren,
+        ),
       ),
     );
   }
@@ -1187,7 +1223,7 @@ class _EtherealStackedAccountsCardState
                             ),
                           ),
                           Text(
-                            isFront ? 'TAP TO MANAGE' : 'TAP TO SELECT',
+                            isFront ? 'SWIPE / TAP FOR NEXT' : 'TAP TO SELECT',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.72),
                               fontSize: 10,
@@ -1489,6 +1525,502 @@ class EtherealMetricCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Data model for an item in the Revenue Flow category chart
+class RevenueFlowCategoryItem {
+  final String categoryName;
+  final double amount;
+  final double percentage;
+  final Color? color;
+  final IconData? icon;
+
+  const RevenueFlowCategoryItem({
+    required this.categoryName,
+    required this.amount,
+    required this.percentage,
+    this.color,
+    this.icon,
+  });
+}
+
+/// Ethereal Revenue Flow bar chart matching high-end fintech aesthetics:
+/// - Pill-shaped vertical bars
+/// - Luminous lilac active bar with top ring indicator
+/// - Floating dark glass tooltip with diagonal arrow badge & percentage
+/// - Down-to-up rise transition on swipe up or interaction
+class RevenueFlowCategoryChart extends StatefulWidget {
+  final List<RevenueFlowCategoryItem> items;
+  final String currency;
+  final String periodLabel;
+  final VoidCallback? onPeriodTap;
+  final VoidCallback? onHeaderActionTap;
+  final String title;
+
+  const RevenueFlowCategoryChart({
+    super.key,
+    required this.items,
+    this.currency = '₹',
+    this.periodLabel = 'Monthly',
+    this.onPeriodTap,
+    this.onHeaderActionTap,
+    this.title = 'Revenue flow',
+  });
+
+  @override
+  State<RevenueFlowCategoryChart> createState() => RevenueFlowCategoryChartState();
+}
+
+class RevenueFlowCategoryChartState extends State<RevenueFlowCategoryChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  int _selectedIndex = -1;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    if (widget.items.isNotEmpty) {
+      // Default to the last item or item with highest amount
+      _selectedIndex = widget.items.length - 1;
+    }
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(RevenueFlowCategoryChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.items != widget.items ||
+        oldWidget.periodLabel != widget.periodLabel) {
+      if (widget.items.isNotEmpty) {
+        if (_selectedIndex >= widget.items.length || _selectedIndex < 0) {
+          _selectedIndex = widget.items.length - 1;
+        }
+      } else {
+        _selectedIndex = -1;
+      }
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Triggers the smooth down-to-up rise transition animation
+  void animateRise() {
+    if (mounted) {
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  String _formatShortAmount(double amount, String currency) {
+    if (amount >= 1000000) {
+      return '+$currency${(amount / 1000000).toStringAsFixed(1)}M';
+    } else if (amount >= 1000) {
+      return '+$currency${(amount / 1000).toStringAsFixed(1)}K';
+    } else if (amount > 0) {
+      return '+$currency${amount.toInt()}';
+    } else {
+      return '$currency 0';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fintech = context.fintech;
+    final items = widget.items;
+
+    // Calculate max amount for scaling
+    double maxAmt = 0.0;
+    for (final it in items) {
+      if (it.amount > maxAmt) maxAmt = it.amount;
+    }
+    if (maxAmt <= 0) maxAmt = 1.0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF13141F),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF232536), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Header: Title, Period pill chip, and circular arrow button
+          Row(
+            children: [
+              Text(
+                widget.title,
+                style: const TextStyle(
+                  color: Color(0xFFF2F2F7),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const Spacer(),
+              // Period Pill
+              InkWell(
+                onTap: widget.onPeriodTap,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF232536),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    widget.periodLabel,
+                    style: const TextStyle(
+                      color: Color(0xFFD6D6E0),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Circular Top-Right Action Button
+              InkWell(
+                onTap: widget.onHeaderActionTap,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.north_east_rounded,
+                    color: Colors.black,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          // 2. Chart Area with Staggered Down-to-Up Pill Bars and Floating Tooltip
+          if (items.isEmpty)
+            Container(
+              height: 180,
+              alignment: Alignment.center,
+              child: Text(
+                'No category data available',
+                style: TextStyle(color: fintech.mutedText, fontSize: 13),
+              ),
+            )
+          else
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) {
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    const double chartHeight = 210.0;
+                    const double maxBarHeight = 150.0;
+                    const double minBarHeight = 45.0;
+
+                    final count = items.length;
+                    final slotWidth = constraints.maxWidth / count;
+
+                    // Tooltip geometry calculation
+                    final selectedIndex = (_selectedIndex >= 0 &&
+                            _selectedIndex < items.length)
+                        ? _selectedIndex
+                        : (items.length - 1);
+                    final selectedItem = items[selectedIndex];
+
+                    final selectedAmtRatio =
+                        (selectedItem.amount / maxAmt).clamp(0.0, 1.0);
+                    final selectedTargetBarHeight = minBarHeight +
+                        selectedAmtRatio * (maxBarHeight - minBarHeight);
+
+                    final selectedBarInterval = CurvedAnimation(
+                      parent: _controller,
+                      curve: Interval(
+                        (selectedIndex * 0.08).clamp(0.0, 0.4),
+                        1.0,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    );
+                    final selectedAnimHeight =
+                        selectedTargetBarHeight * selectedBarInterval.value;
+
+                    // Tooltip horizontal center alignment
+                    final barCenterX = (selectedIndex + 0.5) * slotWidth;
+                    double tooltipLeft = barCenterX -
+                        (selectedIndex >= count / 2 ? 100 : 35);
+                    tooltipLeft = tooltipLeft.clamp(4.0, constraints.maxWidth - 145.0);
+
+                    final tooltipTop = (chartHeight - selectedAnimHeight - 52)
+                        .clamp(0.0, chartHeight - 55.0);
+
+                    return SizedBox(
+                      height: chartHeight + 28, // includes category labels
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Bars & Labels Row
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: List.generate(count, (index) {
+                                final item = items[index];
+                                final isSelected = index == _selectedIndex;
+
+                                final amtRatio =
+                                    (item.amount / maxAmt).clamp(0.0, 1.0);
+                                final targetBarHeight = minBarHeight +
+                                    amtRatio * (maxBarHeight - minBarHeight);
+
+                                final barInterval = CurvedAnimation(
+                                  parent: _controller,
+                                  curve: Interval(
+                                    (index * 0.08).clamp(0.0, 0.4),
+                                    1.0,
+                                    curve: Curves.easeOutCubic,
+                                  ),
+                                );
+                                final animHeight =
+                                    targetBarHeight * barInterval.value;
+
+                                final barWidth = (slotWidth * 0.72)
+                                    .clamp(42.0, 58.0);
+
+                                return SizedBox(
+                                  width: slotWidth,
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedIndex = index;
+                                      });
+                                    },
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // The Pill Bar (Rising from bottom to top)
+                                        SizedBox(
+                                          height: maxBarHeight + 10,
+                                          child: Align(
+                                            alignment: Alignment.bottomCenter,
+                                            child: Container(
+                                              width: barWidth,
+                                              height: animHeight,
+                                              decoration: BoxDecoration(
+                                                color: isSelected
+                                                    ? const Color(0xFFD6BAFD)
+                                                    : const Color(0xFF6B5885),
+                                                borderRadius:
+                                                    BorderRadius.circular(22),
+                                                boxShadow: isSelected
+                                                    ? [
+                                                        BoxShadow(
+                                                          color: const Color(
+                                                                  0xFFD6BAFD)
+                                                              .withValues(
+                                                                  alpha: 0.35),
+                                                          blurRadius: 16,
+                                                          offset:
+                                                              const Offset(0, 4),
+                                                        ),
+                                                      ]
+                                                    : null,
+                                              ),
+                                              child: Stack(
+                                                children: [
+                                                  // Top Ring indicator for active bar
+                                                  if (isSelected)
+                                                    Positioned(
+                                                      top: 8,
+                                                      left: 0,
+                                                      right: 0,
+                                                      child: Center(
+                                                        child: Container(
+                                                          width: 20,
+                                                          height: 20,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            shape: BoxShape
+                                                                .circle,
+                                                            border: Border.all(
+                                                              color: Colors.white,
+                                                              width: 3.2,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  // Bottom Amount inside bar
+                                                  Positioned(
+                                                    bottom: 8,
+                                                    left: 2,
+                                                    right: 2,
+                                                    child: Text(
+                                                      _formatShortAmount(
+                                                          item.amount,
+                                                          widget.currency),
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: TextStyle(
+                                                        color: isSelected
+                                                            ? const Color(
+                                                                0xFF1B112B)
+                                                            : const Color(
+                                                                0xFFE6DEFA),
+                                                        fontSize: 10.5,
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.w800
+                                                            : FontWeight.w700,
+                                                        letterSpacing: -0.2,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+
+                                        // Category Name below bar
+                                        Text(
+                                          item.categoryName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: isSelected
+                                                ? Colors.white
+                                                : const Color(0xFF8E8EA2),
+                                            fontSize: 11,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+
+                          // Floating Glass Tooltip Badge above active bar
+                          Positioned(
+                            left: tooltipLeft,
+                            top: tooltipTop,
+                            child: AnimatedOpacity(
+                              opacity: _controller.value > 0.4 ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E1F2F),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.14),
+                                    width: 1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.45),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Circular Icon with diagonal arrow
+                                    Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.north_east_rounded,
+                                        size: 13,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '${widget.currency}${NumberFormat('#,##0.00').format(selectedItem.amount)}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.3,
+                                            fontFeatures: [
+                                              FontFeature.tabularFigures()
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          '+${selectedItem.percentage.toStringAsFixed(0)}%',
+                                          style: TextStyle(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.72),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+        ],
       ),
     );
   }

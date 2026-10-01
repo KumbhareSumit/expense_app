@@ -57,13 +57,26 @@ void main() {
     expect(find.text('BANK ACCOUNT'), findsOneWidget);
     expect(find.text('SALARY WALLET'), findsOneWidget);
 
-    // Tap on the back card ('SALARY WALLET')
-    await tester.tap(find.text('SALARY WALLET'));
+    // 1. Tap on the front card ('HOME CASH') -> should cycle to next card ('BANK ACCOUNT')
+    await tester.tap(find.text('HOME CASH'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('SWIPE / TAP FOR NEXT'), findsOneWidget);
 
-    // Verify still rendered and active
-    expect(find.text('SALARY WALLET'), findsOneWidget);
+    // Verify no edit dialog is shown on touch
+    expect(find.text('Edit Account'), findsNothing);
+
+    // 2. Swipe down on the card -> should cycle to next card
+    await tester.drag(find.text('SWIPE / TAP FOR NEXT'), const Offset(0, 150));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Edit Account'), findsNothing);
+
+    // 3. Swipe up on the card -> should cycle to next card
+    await tester.drag(find.text('SWIPE / TAP FOR NEXT'), const Offset(0, -150));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Edit Account'), findsNothing);
   });
 
   testWidgets('EtherealTotalBalanceCard and EtherealMetricCard render correctly',

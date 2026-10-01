@@ -133,7 +133,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               balances: accountState.balances,
               currency: currency,
               onAddAccount: () => _showAddAccountDialog(context),
-              onTapAccount: (account) => _showEditAccountDialog(context, account),
             ),
             const SizedBox(height: 16),
 
