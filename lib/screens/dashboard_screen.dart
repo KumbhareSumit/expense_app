@@ -59,15 +59,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final now = DateTime.now();
 
-    // Calculate monthly budget limit for the current month
-    final overallBudget = budgets
+    // Calculate monthly budget limit for the active month
+    final matchingOverall = budgets
         .where((b) => b.month == now.month && b.year == now.year && b.categoryId == null)
-        .firstOrNull;
-    double monthlyBudgetLimit = overallBudget?.limitAmount ?? 0.0;
-    if (monthlyBudgetLimit == 0.0) {
-      monthlyBudgetLimit = budgets
+        .toList();
+
+    double monthlyBudgetLimit = 0.0;
+    if (matchingOverall.isNotEmpty) {
+      monthlyBudgetLimit = matchingOverall.last.limitAmount;
+    } else {
+      final matchingCategoryBudgets = budgets
           .where((b) => b.month == now.month && b.year == now.year && b.categoryId != null)
-          .fold(0.0, (sum, b) => sum + b.limitAmount);
+          .toList();
+      if (matchingCategoryBudgets.isNotEmpty) {
+        monthlyBudgetLimit = matchingCategoryBudgets.fold(0.0, (sum, b) => sum + b.limitAmount);
+      } else if (budgets.isNotEmpty) {
+        final overallAny = budgets.where((b) => b.categoryId == null).toList();
+        if (overallAny.isNotEmpty) {
+          monthlyBudgetLimit = overallAny.last.limitAmount;
+        } else {
+          monthlyBudgetLimit = budgets.fold(0.0, (sum, b) => sum + b.limitAmount);
+        }
+      }
     }
 
     double owedToMe = 0;

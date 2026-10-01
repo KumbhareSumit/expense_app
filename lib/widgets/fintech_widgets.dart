@@ -879,65 +879,25 @@ class _EtherealStackedAccountsCardState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: "My accounts" with count & "Add +" pill button
+          // Header: "My accounts" with count
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'My accounts',
-                    style: TextStyle(
-                      color: fintech.primaryText,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${widget.accounts.length}',
-                    style: TextStyle(
-                      color: fintech.mutedText,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+              Text(
+                'My accounts',
+                style: TextStyle(
+                  color: fintech.primaryText,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              InkWell(
-                onTap: widget.onAddAccount,
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        'Add',
-                        style: TextStyle(
-                          color: Color(0xFF0F1016),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(Icons.add_rounded,
-                          color: Color(0xFF0F1016), size: 15),
-                    ],
-                  ),
+              const SizedBox(width: 4),
+              Text(
+                '${widget.accounts.length}',
+                style: TextStyle(
+                  color: fintech.mutedText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -1415,32 +1375,35 @@ class EtherealTotalBalanceCard extends StatelessWidget {
 
       Color dotColor;
       Color statusTextColor;
-      String budgetText;
 
       if (ratio <= 0.60) {
-        // Green: Healthy / Full / Plenty remaining (spent <= 60%)
+        // Green: Healthy / Full (spent <= 60%)
         dotColor = const Color(0xFF059669);
         statusTextColor = const Color(0xFF065F46);
-        budgetText = '$currency${NumberFormat('#,##0').format(monthlyBudget)}';
       } else if (ratio <= 0.85) {
         // Yellow/Amber: Moderate / Warning (60% - 85% spent)
         dotColor = const Color(0xFFD97706);
         statusTextColor = const Color(0xFF92400E);
-        budgetText = '$currency${NumberFormat('#,##0').format(monthlyBudget)}';
       } else {
         // Red: Critical / Near Limit or Exceeded (> 85% spent)
         dotColor = const Color(0xFFDC2626);
         statusTextColor = const Color(0xFF991B1B);
-        final remaining = monthlyBudget! - spent;
-        budgetText = remaining >= 0
-            ? '$currency${NumberFormat('#,##0').format(monthlyBudget)}'
-            : 'Over $currency${NumberFormat('#,##0').format(remaining.abs())}';
+      }
+
+      final remaining = monthlyBudget! - spent;
+      final String budgetText;
+      if (remaining >= 0) {
+        final formattedRemaining = NumberFormat('#,##0').format(remaining);
+        budgetText = '$currency$formattedRemaining left';
+      } else {
+        final formattedOver = NumberFormat('#,##0').format(remaining.abs());
+        budgetText = 'Over $currency$formattedOver';
       }
 
       budgetBadge = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+        padding: const EdgeInsets.symmetric(horizontal: 8.5, vertical: 3.5),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.60),
+          color: Colors.white.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: dotColor.withValues(alpha: 0.35),

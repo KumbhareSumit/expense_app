@@ -52,7 +52,6 @@ void main() {
 
     expect(find.text('My accounts'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
-    expect(find.text('Add'), findsOneWidget);
     expect(find.text('HOME CASH'), findsOneWidget);
     expect(find.text('BANK ACCOUNT'), findsOneWidget);
     expect(find.text('SALARY WALLET'), findsOneWidget);

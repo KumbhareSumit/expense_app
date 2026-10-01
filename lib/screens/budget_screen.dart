@@ -397,17 +397,27 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
             onPressed: () {
               final amount = double.tryParse(controller.text);
               if (amount == null || amount <= 0) return;
+
+              final allBudgets = ref.read(budgetProvider);
+              final alreadyExisting = allBudgets
+                  .where((b) =>
+                      b.month == _selectedDate.month &&
+                      b.year == _selectedDate.year &&
+                      b.categoryId == selectedCategoryId)
+                  .firstOrNull;
+
               final model = BudgetModel(
-                id: existing?.id,
+                id: existing?.id ?? alreadyExisting?.id,
                 month: _selectedDate.month,
                 year: _selectedDate.year,
                 categoryId: selectedCategoryId,
                 limitAmount: amount,
               );
-              if (existing == null) {
-                ref.read(budgetProvider.notifier).addBudget(model);
-              } else {
+
+              if (existing != null || alreadyExisting != null) {
                 ref.read(budgetProvider.notifier).updateBudget(model);
+              } else {
+                ref.read(budgetProvider.notifier).addBudget(model);
               }
               Navigator.pop(dialogContext);
             },

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:crypto/crypto.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -469,52 +472,148 @@ class DBHelper {
         orderBy: 'date DESC',
       );
 
-  Future<Map<String, List<Map<String, dynamic>>>> exportAllData() async {
+  static const Map<String, Set<String>> _tableAllowedColumns = {
+    'categories': {'id', 'name', 'iconCode', 'colorValue', 'type', 'isCustom'},
+    'accounts': {'id', 'name', 'type', 'openingBalance', 'colorValue', 'iconCode', 'createdAt'},
+    'transactions': {'id', 'amount', 'type', 'categoryId', 'date', 'note', 'paymentMode', 'isRecurring', 'accountId'},
+    'budgets': {'id', 'month', 'year', 'categoryId', 'limitAmount'},
+    'transfers': {'id', 'fromAccountId', 'toAccountId', 'amount', 'date', 'note'},
+    'goals': {'id', 'name', 'targetAmount', 'currentAmount', 'deadline', 'colorValue', 'iconCode', 'isCompleted'},
+    'goal_contributions': {'id', 'goalId', 'amount', 'date', 'note'},
+    'debts': {'id', 'personName', 'totalAmount', 'paidAmount', 'type', 'date', 'dueDate', 'note', 'isSettled'},
+    'debt_payments': {'id', 'debtId', 'amount', 'date', 'note'},
+  };
+
+  static const List<String> _restoreTableOrder = [
+    'categories',
+    'accounts',
+    'transactions',
+    'budgets',
+    'transfers',
+    'goals',
+    'goal_contributions',
+    'debts',
+    'debt_payments',
+  ];
+
+  /// SEC-04: Export all tables with cryptographic SHA-256 integrity envelope
+  Future<Map<String, dynamic>> exportAllData() async {
     final db = await database;
-    final tables = [
-      'categories',
-      'accounts',
-      'transactions',
-      'budgets',
-      'transfers',
-      'goals',
-      'goal_contributions',
-      'debts',
-      'debt_payments',
-    ];
-    final result = <String, List<Map<String, dynamic>>>{};
-    for (final table in tables) {
-      result[table] = await db.query(table);
+    final tablesData = <String, List<Map<String, dynamic>>>{};
+    for (final table in _restoreTableOrder) {
+      final rows = await db.query(table, orderBy: 'id ASC');
+      tablesData[table] = rows;
     }
-    return result;
+
+    final dataJson = jsonEncode(tablesData);
+    final checksum = sha256.convert(utf8.encode(dataJson)).toString();
+
+    return {
+      'app': 'personal_expense_tracker_app',
+      'version': 1,
+      'schemaVersion': 5,
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'checksum': checksum,
+      'data': tablesData,
+    };
   }
 
-  Future<void> restoreAllData(Map<String, dynamic> backup) async {
+  /// SEC-01 & SEC-04: Secure restoration with schema validation, column sanitization,
+  /// SHA-256 integrity verification, and foreign-key topological order.
+  Future<void> restoreAllData(Map<String, dynamic> rawBackup) async {
     final db = await database;
-    final tables = [
-      'debt_payments',
-      'goal_contributions',
-      'transfers',
-      'transactions',
-      'budgets',
-      'debts',
-      'goals',
-      'accounts',
-      'categories',
-    ];
+
+    Map<String, dynamic> tablesData;
+
+    // SEC-04: Verify Envelope & SHA-256 Checksum Integrity
+    if (rawBackup.containsKey('app') && rawBackup.containsKey('data')) {
+      if (rawBackup['app'] != 'personal_expense_tracker_app') {
+        throw const FormatException('Invalid backup file: Unrecognized application identifier.');
+      }
+
+      final dynamic dataField = rawBackup['data'];
+      if (dataField is! Map) {
+        throw const FormatException('Malformed backup data format.');
+      }
+
+      final expectedChecksum = rawBackup['checksum'];
+      if (expectedChecksum is String && expectedChecksum.isNotEmpty) {
+        final canonicalJson = jsonEncode(dataField);
+        final calculatedChecksum = sha256.convert(utf8.encode(canonicalJson)).toString();
+        if (calculatedChecksum != expectedChecksum) {
+          throw const FormatException('Backup integrity verification failed (checksum mismatch). File may be corrupted or tampered.');
+        }
+      }
+
+      tablesData = Map<String, dynamic>.from(dataField);
+    } else {
+      // Direct raw tables backup format
+      tablesData = rawBackup;
+    }
+
+    // SEC-01: Schema Validation & Column Sanitization
+    final validatedInsertMap = <String, List<Map<String, dynamic>>>{};
+
+    for (final entry in tablesData.entries) {
+      final tableName = entry.key;
+      if (!_tableAllowedColumns.containsKey(tableName)) {
+        // Disallow unknown tables
+        continue;
+      }
+
+      final allowedColumns = _tableAllowedColumns[tableName]!;
+      final rowsRaw = entry.value;
+      if (rowsRaw is! List) {
+        throw FormatException('Table "$tableName" must contain a list of row records.');
+      }
+
+      final sanitizedRows = <Map<String, dynamic>>[];
+      for (var i = 0; i < rowsRaw.length; i++) {
+        final rowItem = rowsRaw[i];
+        if (rowItem is! Map) {
+          throw FormatException('Malformed row at index $i in table "$tableName".');
+        }
+
+        final sanitizedRow = <String, dynamic>{};
+        for (final colEntry in rowItem.entries) {
+          final colName = colEntry.key.toString();
+          if (!allowedColumns.contains(colName)) {
+            // Reject unapproved/injected columns
+            continue;
+          }
+
+          final val = colEntry.value;
+          // Validate basic types to prevent SQLite type poisoning
+          if (val != null && val is! num && val is! String && val is! bool && val is! Uint8List) {
+            throw FormatException('Invalid data type for column "$colName" in table "$tableName".');
+          }
+
+          sanitizedRow[colName] = val;
+        }
+
+        sanitizedRows.add(sanitizedRow);
+      }
+
+      validatedInsertMap[tableName] = sanitizedRows;
+    }
+
+    // Atomic Restoration respecting foreign-key topological order
     await db.transaction((txn) async {
-      for (final table in tables) {
+      // 1. Delete in reverse dependency order
+      for (final table in _restoreTableOrder.reversed) {
         await txn.delete(table);
       }
-      for (final table in tables.reversed) {
-        final rows = (backup[table] as List<dynamic>? ?? const [])
-            .cast<Map<String, dynamic>>();
+
+      // 2. Insert in forward dependency order (parent tables before child tables)
+      for (final table in _restoreTableOrder) {
+        final rows = validatedInsertMap[table] ?? const [];
         for (final row in rows) {
           await txn.insert(table, row);
         }
       }
-      final accountCount =
-          Sqflite.firstIntValue(
+
+      // 3. Ensure at least one account exists
+      final accountCount = Sqflite.firstIntValue(
             await txn.rawQuery('SELECT COUNT(*) FROM accounts'),
           ) ??
           0;
@@ -525,6 +624,7 @@ class DBHelper {
           'openingBalance': 0.0,
           'colorValue': 0xFF176B5B,
           'iconCode': 0xE8B0,
+          'createdAt': DateTime.now().toIso8601String(),
         });
       }
     });
