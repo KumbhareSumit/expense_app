@@ -32,6 +32,18 @@ android {
 
     buildTypes {
         release {
+            // Enables code shrinking, obfuscation, and optimization with R8
+            isMinifyEnabled = true
+
+            // Enables unused resource shrinking
+            isShrinkResources = true
+
+            // ProGuard / R8 rules
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
