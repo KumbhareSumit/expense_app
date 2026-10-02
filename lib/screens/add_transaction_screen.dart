@@ -15,15 +15,6 @@ import '../models/goal_model.dart';
 import '../models/debt_model.dart';
 import '../utils/icon_helper.dart';
 
-class SplitPerson {
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController amountController = TextEditingController();
-
-  void dispose() {
-    nameController.dispose();
-    amountController.dispose();
-  }
-}
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
   final TransactionModel? transaction;
@@ -48,8 +39,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   int? _selectedAccountId;
   String _debtType = 'lent';
 
-  bool _isSplit = false;
-  final List<SplitPerson> _splitPersons = [];
 
   bool get _isEditing => widget.transaction != null;
 
@@ -73,9 +62,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     _amountController.dispose();
     _nameController.dispose();
     _noteController.dispose();
-    for (var p in _splitPersons) {
-      p.dispose();
-    }
     super.dispose();
   }
 
@@ -129,47 +115,10 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       return;
     }
 
-    double finalTransactionAmount = amount;
-    if (_isSplit && _type == 'expense' && !_isEditing) {
-      double friendsTotal = 0;
-      for (var p in _splitPersons) {
-        if (p.nameController.text.trim().isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter names for all friends')));
-          return;
-        }
-        final amt = double.tryParse(p.amountController.text) ?? 0;
-        if (amt <= 0) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid split amounts')));
-          return;
-        }
-        friendsTotal += amt;
-      }
-      
-      final myShare = amount - friendsTotal;
-      if (myShare < 0) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Friend amounts cannot exceed total amount')));
-        return;
-      }
-      
-      finalTransactionAmount = myShare;
-      
-      for (var p in _splitPersons) {
-        final amt = double.tryParse(p.amountController.text) ?? 0;
-        ref.read(debtProvider.notifier).addDebt(
-          DebtModel(
-            personName: p.nameController.text.trim(),
-            totalAmount: amt,
-            type: 'lent',
-            date: _selectedDate,
-            note: _noteController.text.trim().isEmpty ? 'Split Expense' : 'Split: ${_noteController.text.trim()}',
-          ),
-        );
-      }
-    }
 
     final transaction = TransactionModel(
       id: widget.transaction?.id,
-      amount: finalTransactionAmount,
+      amount: amount,
       type: _type,
       categoryId: _selectedCategoryId!,
       date: _selectedDate,
@@ -330,9 +279,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                   prefixText: '$currency ',
                   border: const OutlineInputBorder(),
                 ),
-                onChanged: (val) {
-                  if (_isSplit) setState(() {});
-                },
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Enter amount';
                   final amount = double.tryParse(value);
@@ -343,142 +289,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
               ),
               const SizedBox(height: 20),
 
-              if (!_isEditing && _type == 'expense')
-                SwitchListTile(
-                  title: const Text('Split with others', style: TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Add friends to split this bill'),
-                  value: _isSplit,
-                  contentPadding: EdgeInsets.zero,
-                  onChanged: (value) {
-                    setState(() {
-                      _isSplit = value;
-                      if (_isSplit && _splitPersons.isEmpty) {
-                        _splitPersons.add(SplitPerson());
-                      }
-                    });
-                  },
-                ),
-              
-              if (_isSplit && _type == 'expense' && !_isEditing) ...[
-                const SizedBox(height: 10),
-                ..._splitPersons.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final person = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: TextFormField(
-                            controller: person.nameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Friend Name',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          flex: 1,
-                          child: TextFormField(
-                            controller: person.amountController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: InputDecoration(
-                              labelText: 'Amount',
-                              prefixText: '$currency ',
-                              border: const OutlineInputBorder(),
-                            ),
-                            onChanged: (val) => setState(() {}),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle, color: Colors.red),
-                          onPressed: () {
-                            setState(() {
-                              person.dispose();
-                              _splitPersons.removeAt(index);
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Person'),
-                      onPressed: () {
-                        setState(() {
-                          _splitPersons.add(SplitPerson());
-                        });
-                      },
-                    ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.calculate),
-                      label: const Text('Split Equally'),
-                      onPressed: () {
-                        final total = double.tryParse(_amountController.text) ?? 0;
-                        if (total > 0 && _splitPersons.isNotEmpty) {
-                          final share = total / (_splitPersons.length + 1);
-                          setState(() {
-                            for (var p in _splitPersons) {
-                              p.amountController.text = share.toStringAsFixed(2);
-                            }
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                Builder(
-                  builder: (context) {
-                    final total = double.tryParse(_amountController.text) ?? 0;
-                    double friendsTotal = 0;
-                    for (var p in _splitPersons) {
-                      friendsTotal += double.tryParse(p.amountController.text) ?? 0;
-                    }
-                    final myShare = total - friendsTotal;
-                    final isError = myShare < 0;
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 10, bottom: 20),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isError ? Colors.red.withValues(alpha: .1) : Colors.green.withValues(alpha: .1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: isError ? Colors.red : Colors.green),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Your Share:',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isError ? Colors.red : Colors.green,
-                              ),
-                            ),
-                            Text(
-                              '$currency ${myShare.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: isError ? Colors.red : Colors.green,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                ),
-              ],
 
               if (isDebt)
                 DropdownButtonFormField<String>(
