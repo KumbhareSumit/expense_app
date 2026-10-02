@@ -15,7 +15,6 @@ import '../utils/app_theme.dart';
 import '../utils/financial_calculator.dart';
 import '../widgets/fintech_widgets.dart';
 import 'add_transaction_screen.dart';
-import 'settings_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -127,16 +126,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.settings_outlined, color: fintech.mutedText),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 100.0),

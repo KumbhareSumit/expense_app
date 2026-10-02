@@ -18,29 +18,45 @@ class CategoryNotifier extends StateNotifier<List<CategoryModel>> {
     }
   }
 
-  Future<void> addCategory(CategoryModel category) async {
+  Future<CategoryModel?> addCategory(CategoryModel category) async {
     try {
-      final id = await _dbHelper.insertCategory(category);
-      final newCategory = CategoryModel(
-        id: id,
+      final normalizedCategory = CategoryModel(
         name: category.name,
         iconCode: category.iconCode,
         colorValue: category.colorValue,
-        type: category.type,
+        type: category.type.trim().toLowerCase(),
         isCustom: category.isCustom,
       );
+      final id = await _dbHelper.insertCategory(normalizedCategory);
+      final newCategory = CategoryModel(
+        id: id,
+        name: normalizedCategory.name,
+        iconCode: normalizedCategory.iconCode,
+        colorValue: normalizedCategory.colorValue,
+        type: normalizedCategory.type,
+        isCustom: normalizedCategory.isCustom,
+      );
       state = [...state, newCategory];
+      return newCategory;
     } catch (e) {
-      // Handle error
+      return null;
     }
   }
 
   Future<void> updateCategory(CategoryModel category) async {
     try {
-      await _dbHelper.updateCategory(category);
+      final normalizedCategory = CategoryModel(
+        id: category.id,
+        name: category.name,
+        iconCode: category.iconCode,
+        colorValue: category.colorValue,
+        type: category.type.trim().toLowerCase(),
+        isCustom: category.isCustom,
+      );
+      await _dbHelper.updateCategory(normalizedCategory);
       state = [
         for (final c in state)
-          if (c.id == category.id) category else c
+          if (c.id == normalizedCategory.id) normalizedCategory else c
       ];
     } catch (e) {
       // Handle error

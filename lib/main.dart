@@ -6,13 +6,12 @@ import 'screens/main_navigation.dart';
 import 'utils/app_theme.dart';
 import 'utils/notification_helper.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await NotificationHelper.init();
-  } catch (e) {
+  // Initialize background services asynchronously without blocking first frame
+  NotificationHelper.init().catchError((e) {
     debugPrint("Notification initialization failed: $e");
-  }
+  });
   runApp(const ProviderScope(child: MyApp()));
 }
 

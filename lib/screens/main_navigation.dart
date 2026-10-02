@@ -2,10 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'analysis_screen.dart';
-import 'accounts_screen.dart';
 import 'budget_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
+import 'settings_screen.dart';
 import 'web/web_crm_layout.dart';
 import '../utils/app_theme.dart';
 
@@ -24,7 +24,7 @@ class _MainNavigationState extends State<MainNavigation> {
     AnalysisScreen(),
     HistoryScreen(),
     BudgetScreen(),
-    AccountsScreen(),
+    SettingsScreen(),
   ];
 
   @override
@@ -77,9 +77,9 @@ class _MainNavigationState extends State<MainNavigation> {
               label: 'Budget',
             ),
             NavigationDestination(
-              icon: Icon(Icons.credit_card_rounded),
-              selectedIcon: Icon(Icons.credit_card_rounded),
-              label: 'Accounts',
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings_rounded),
+              label: 'Settings',
             ),
           ],
         ),

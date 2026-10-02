@@ -10,6 +10,7 @@ import '../models/budget_model.dart';
 import '../models/account_model.dart';
 import '../models/goal_model.dart';
 import '../models/debt_model.dart';
+import '../utils/encryption_helper.dart';
 
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
@@ -124,7 +125,7 @@ class DBHelper {
     }
   }
 
-  Future<void> _createFeatureTables(Database db) async {
+  Future<void> _createFeatureTables(DatabaseExecutor db) async {
     await db.execute(
       'CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT NOT NULL, openingBalance REAL NOT NULL, colorValue INTEGER NOT NULL, iconCode INTEGER NOT NULL, createdAt TEXT)',
     );
@@ -143,6 +144,13 @@ class DBHelper {
     await db.execute(
       'CREATE TABLE IF NOT EXISTS debt_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, debtId INTEGER NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, note TEXT, FOREIGN KEY (debtId) REFERENCES debts(id) ON DELETE CASCADE)',
     );
+
+    // Create indexes on foreign keys to optimize relational joins & cascade integrity (SEC-05)
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_transfers_from_account ON transfers(fromAccountId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_transfers_to_account ON transfers(toAccountId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_goal_contributions_goal ON goal_contributions(goalId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON debt_payments(debtId)');
+
     final count =
         Sqflite.firstIntValue(
           await db.rawQuery('SELECT COUNT(*) FROM accounts'),
@@ -160,7 +168,7 @@ class DBHelper {
     await _ensureBankAccount(db);
   }
 
-  Future<void> _ensureBankAccount(Database db) async {
+  Future<void> _ensureBankAccount(DatabaseExecutor db) async {
     final bankCount =
         Sqflite.firstIntValue(
           await db.rawQuery(
@@ -179,7 +187,7 @@ class DBHelper {
     }
   }
 
-  Future<void> _prePopulateCategories(Database db) async {
+  Future<void> _prePopulateCategories(DatabaseExecutor db) async {
     final List<CategoryModel> defaultCategories = [
       CategoryModel(
         name: 'Food',
@@ -496,13 +504,20 @@ class DBHelper {
     'debt_payments',
   ];
 
-  /// SEC-04: Export all tables with cryptographic SHA-256 integrity envelope
-  Future<Map<String, dynamic>> exportAllData() async {
+  /// SEC-02 & SEC-04: Export all tables with cryptographic SHA-256 integrity & AES-256 encryption
+  Future<Map<String, dynamic>> exportAllData({String? password, bool encrypt = true}) async {
     final db = await database;
     final tablesData = <String, List<Map<String, dynamic>>>{};
     for (final table in _restoreTableOrder) {
       final rows = await db.query(table, orderBy: 'id ASC');
       tablesData[table] = rows;
+    }
+
+    if (encrypt) {
+      return EncryptionHelper.encryptBackup(
+        data: tablesData,
+        customPassword: password,
+      );
     }
 
     final dataJson = jsonEncode(tablesData);
@@ -512,21 +527,28 @@ class DBHelper {
       'app': 'personal_expense_tracker_app',
       'version': 1,
       'schemaVersion': 5,
+      'isEncrypted': false,
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'checksum': checksum,
       'data': tablesData,
     };
   }
 
-  /// SEC-01 & SEC-04: Secure restoration with schema validation, column sanitization,
-  /// SHA-256 integrity verification, and foreign-key topological order.
-  Future<void> restoreAllData(Map<String, dynamic> rawBackup) async {
+  /// SEC-01, SEC-02 & SEC-04: Secure restoration with AES-256 decryption, schema validation,
+  /// column sanitization, SHA-256 integrity verification, and foreign-key topological order.
+  Future<void> restoreAllData(Map<String, dynamic> rawBackup, {String? password}) async {
     final db = await database;
 
     Map<String, dynamic> tablesData;
 
-    // SEC-04: Verify Envelope & SHA-256 Checksum Integrity
-    if (rawBackup.containsKey('app') && rawBackup.containsKey('data')) {
+    // SEC-02: AES-256 Decryption if encrypted
+    if (rawBackup['isEncrypted'] == true) {
+      tablesData = EncryptionHelper.decryptBackup(
+        envelope: rawBackup,
+        customPassword: password,
+      );
+    } else if (rawBackup.containsKey('app') && rawBackup.containsKey('data')) {
+      // SEC-04: Verify Envelope & SHA-256 Checksum Integrity for unencrypted envelopes
       if (rawBackup['app'] != 'personal_expense_tracker_app') {
         throw const FormatException('Invalid backup file: Unrecognized application identifier.');
       }
@@ -631,24 +653,21 @@ class DBHelper {
   }
 
   // --- Backup & Restore ---
+  /// SEC-05: Atomic wipe and re-initialization respecting strict reverse topological order
   Future<void> clearAllData() async {
     final db = await database;
-    await db.delete('debt_payments');
-    await db.delete('goal_contributions');
-    await db.delete('transfers');
-    await db.delete('debts');
-    await db.delete('goals');
-    await db.delete('accounts');
-    await db.delete('transactions');
-    await db.delete('budgets');
-    // We might want to keep default categories or clear all?
-    // Let's clear all and re-populate defaults if needed, or just clear custom ones.
-    // Usually "Clear All" means everything.
-    await db.delete('categories');
-    await _prePopulateCategories(db);
-    await _createFeatureTables(db);
+    await db.transaction((txn) async {
+      // 1. Delete all child tables before parent tables
+      for (final table in _restoreTableOrder.reversed) {
+        await txn.delete(table);
+      }
+      // 2. Re-populate default categories and accounts
+      await _prePopulateCategories(txn);
+      await _createFeatureTables(txn);
+    });
   }
 
+  /// SEC-05: Legacy restore helper with atomic transaction and foreign key safety
   Future<void> restoreData(
     List<CategoryModel> categories,
     List<TransactionModel> transactions,

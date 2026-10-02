@@ -455,7 +455,10 @@ class AppTheme {
         backgroundColor: colors.accent,
         foregroundColor: isDark ? const Color(0xFF06231B) : Colors.white,
         elevation: 4,
-        shape: const CircleBorder(),
+        extendedTextStyle: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         elevation: 0,

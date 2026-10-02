@@ -1623,12 +1623,18 @@ class EtherealMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fintech = context.fintech;
-    final formattedAmount =
-        NumberFormat('#,##0.00').format(amount.abs());
+    final formattedAmount = NumberFormat('#,##0.00').format(amount);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final badgeColor = isIncome ? fintech.income : fintech.expense;
-    final badgeBg = isIncome
-        ? const Color(0xFF1E3319)
-        : const Color(0xFF331919);
+    final badgeBg = isDark
+        ? (isIncome ? const Color(0xFF1E3319) : const Color(0xFF331919))
+        : (isIncome ? const Color(0xFFE6F9EF) : const Color(0xFFFEE2E2));
+    final badgeBorderColor = isDark
+        ? badgeColor.withValues(alpha: 0.3)
+        : (isIncome ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA));
+    final badgeTextColor = isDark
+        ? badgeColor
+        : (isIncome ? const Color(0xFF065F46) : const Color(0xFF991B1B));
 
     return InkWell(
       onTap: onTap,
@@ -1662,14 +1668,14 @@ class EtherealMetricCard extends StatelessWidget {
                     color: badgeBg,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: badgeColor.withValues(alpha: 0.3),
+                      color: badgeBorderColor,
                       width: 0.8,
                     ),
                   ),
                   child: Text(
                     badgeText,
                     style: TextStyle(
-                      color: badgeColor,
+                      color: badgeTextColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
