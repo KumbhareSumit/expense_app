@@ -18,8 +18,13 @@ import '../utils/icon_helper.dart';
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
   final TransactionModel? transaction;
+  final int? initialAccountId;
 
-  const AddTransactionScreen({super.key, this.transaction});
+  const AddTransactionScreen({
+    super.key,
+    this.transaction,
+    this.initialAccountId,
+  });
 
   @override
   ConsumerState<AddTransactionScreen> createState() =>
@@ -54,6 +59,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       _selectedAccountId = transaction.accountId;
       _amountController.text = transaction.amount.toString();
       _noteController.text = transaction.note;
+    } else {
+      _selectedAccountId = widget.initialAccountId;
     }
   }
 

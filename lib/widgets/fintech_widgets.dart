@@ -789,7 +789,8 @@ class EtherealStackedAccountsCard extends StatefulWidget {
   final Map<int, double> balances;
   final String currency;
   final VoidCallback onAddAccount;
-  final ValueChanged<AccountModel>? onTapAccount;
+  final ValueChanged<AccountModel?>? onAccountSelected;
+  final int? selectedAccountId;
 
   const EtherealStackedAccountsCard({
     super.key,
@@ -797,7 +798,8 @@ class EtherealStackedAccountsCard extends StatefulWidget {
     required this.balances,
     required this.currency,
     required this.onAddAccount,
-    this.onTapAccount,
+    this.onAccountSelected,
+    this.selectedAccountId,
   });
 
   @override
@@ -842,27 +844,60 @@ class _EtherealStackedAccountsCardState
     super.didUpdateWidget(oldWidget);
     if (widget.accounts.length != oldWidget.accounts.length) {
       _initOrder();
+    } else if (widget.selectedAccountId != oldWidget.selectedAccountId && widget.selectedAccountId != null) {
+      final targetIdx = widget.accounts.indexWhere((a) => a.id == widget.selectedAccountId);
+      if (targetIdx != -1) {
+        final rank = _cardOrder.indexOf(targetIdx);
+        if (rank > 0) {
+          _bringToFront(rank, notify: false);
+        }
+      }
     }
   }
 
   void _initOrder() {
     _cardOrder = List.generate(widget.accounts.length, (i) => i);
+    if (widget.selectedAccountId != null) {
+      final targetIdx = widget.accounts.indexWhere((a) => a.id == widget.selectedAccountId);
+      if (targetIdx != -1) {
+        _cardOrder.remove(targetIdx);
+        _cardOrder.insert(0, targetIdx);
+      }
+    }
   }
 
-  void _bringToFront(int rank) {
+  void _bringToFront(int rank, {bool notify = true}) {
     if (rank <= 0 || rank >= _cardOrder.length) return;
     setState(() {
       final selected = _cardOrder.removeAt(rank);
       _cardOrder.insert(0, selected);
     });
+    if (notify && widget.accounts.isNotEmpty) {
+      final frontAccount = widget.accounts[_cardOrder[0]];
+      widget.onAccountSelected?.call(frontAccount);
+    }
   }
 
-  void _nextCard() {
-    if (_cardOrder.length <= 1) return;
+  void _nextCard({bool notify = true}) {
+    if (_cardOrder.length <= 1) {
+      if (widget.accounts.isNotEmpty && notify) {
+        final frontAccount = widget.accounts[_cardOrder[0]];
+        if (widget.selectedAccountId == frontAccount.id) {
+          widget.onAccountSelected?.call(null);
+        } else {
+          widget.onAccountSelected?.call(frontAccount);
+        }
+      }
+      return;
+    }
     setState(() {
       final front = _cardOrder.removeAt(0);
       _cardOrder.add(front);
     });
+    if (notify && widget.accounts.isNotEmpty) {
+      final newFrontAccount = widget.accounts[_cardOrder[0]];
+      widget.onAccountSelected?.call(newFrontAccount);
+    }
   }
 
   @override
@@ -879,27 +914,94 @@ class _EtherealStackedAccountsCardState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: "My accounts" with count
+          // Header: "My accounts" with count & All/Filtered toggle button
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'My accounts',
-                style: TextStyle(
-                  color: fintech.primaryText,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'My accounts',
+                    style: TextStyle(
+                      color: fintech.primaryText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${widget.accounts.length}',
+                    style: TextStyle(
+                      color: fintech.mutedText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 4),
-              Text(
-                '${widget.accounts.length}',
-                style: TextStyle(
-                  color: fintech.mutedText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+              if (widget.accounts.isNotEmpty)
+                InkWell(
+                  onTap: () {
+                    if (widget.selectedAccountId != null) {
+                      widget.onAccountSelected?.call(null);
+                    } else if (_cardOrder.isNotEmpty) {
+                      widget.onAccountSelected?.call(widget.accounts[_cardOrder[0]]);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: widget.selectedAccountId == null
+                          ? fintech.accent.withValues(alpha: 0.12)
+                          : fintech.cardSurface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: widget.selectedAccountId == null
+                            ? fintech.accent
+                            : fintech.cardBorder,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          widget.selectedAccountId == null
+                              ? Icons.all_inclusive_rounded
+                              : Icons.tune_rounded,
+                          size: 13,
+                          color: widget.selectedAccountId == null
+                              ? fintech.accent
+                              : fintech.mutedText,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          widget.selectedAccountId == null
+                              ? 'All Accounts'
+                              : 'Filter Active',
+                          style: TextStyle(
+                            color: widget.selectedAccountId == null
+                                ? fintech.accent
+                                : fintech.primaryText,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (widget.selectedAccountId != null) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.close_rounded,
+                            size: 13,
+                            color: fintech.mutedText,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -995,6 +1097,8 @@ class _EtherealStackedAccountsCardState
         shadowOpacity = 0.14;
       }
 
+      final isSelected = widget.selectedAccountId == account.id;
+
       stackChildren.add(
         AnimatedPositioned(
           key: ValueKey(account.id ?? account.name),
@@ -1008,21 +1112,26 @@ class _EtherealStackedAccountsCardState
             behavior: HitTestBehavior.opaque,
             onTap: () {
               if (rank == 0) {
-                _nextCard();
+                final currentFront = widget.accounts[accountIndex];
+                if (widget.selectedAccountId != currentFront.id) {
+                  widget.onAccountSelected?.call(currentFront);
+                } else {
+                  _nextCard(notify: true);
+                }
               } else {
-                _bringToFront(rank);
+                _bringToFront(rank, notify: true);
               }
             },
             onVerticalDragEnd: (details) {
               final velocity = details.primaryVelocity ?? 0;
               if (velocity.abs() > 50) {
-                _nextCard();
+                _nextCard(notify: true);
               }
             },
             onHorizontalDragEnd: (details) {
               final velocity = details.primaryVelocity ?? 0;
               if (velocity.abs() > 50) {
-                _nextCard();
+                _nextCard(notify: true);
               }
             },
             child: _buildCardItem(
@@ -1031,6 +1140,7 @@ class _EtherealStackedAccountsCardState
               gradient: gradient,
               shadowOpacity: shadowOpacity,
               isFront: rank == 0,
+              isSelected: isSelected,
             ),
           ),
         ),
@@ -1067,6 +1177,7 @@ class _EtherealStackedAccountsCardState
     required List<Color> gradient,
     required double shadowOpacity,
     required bool isFront,
+    required bool isSelected,
   }) {
     final formattedBalance =
         NumberFormat('#,##0.00').format(balance.abs());
@@ -1128,7 +1239,7 @@ class _EtherealStackedAccountsCardState
             ),
           ),
 
-          // Top Row: Account Name, Real EMV Chip, NFC & masked card number
+          // Top Row: Account Name, Real EMV Chip, NFC & masked card number / SELECTED badge
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Column(
@@ -1164,15 +1275,52 @@ class _EtherealStackedAccountsCardState
                         ),
                       ],
                     ),
-                    Text(
-                      '•••• ${(account.id ?? 1).toString().padLeft(4, '0')}',
-                      style: TextStyle(
-                        color: secondaryTextColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
+                    if (isSelected)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: isLight
+                              ? const Color(0xFF0F172A).withValues(alpha: 0.12)
+                              : Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isLight
+                                ? const Color(0xFF0F172A).withValues(alpha: 0.25)
+                                : Colors.white.withValues(alpha: 0.4),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.check_circle_rounded,
+                              size: 11,
+                              color: primaryTextColor,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'SELECTED',
+                              style: TextStyle(
+                                color: primaryTextColor,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        '•••• ${(account.id ?? 1).toString().padLeft(4, '0')}',
+                        style: TextStyle(
+                          color: secondaryTextColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 10),

@@ -27,6 +27,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   FintechThemeColors get fintech => context.fintech;
   final String _selectedPeriod = 'Monthly';
   final DateTime _selectedDate = DateTime.now();
+  int? _selectedAccountId;
 
   @override
   Widget build(BuildContext context) {
@@ -38,14 +39,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final currency = settings.currencySymbol;
     final accountState = ref.watch(accountProvider);
 
+    // Resolve selected account (if any)
+    AccountModel? selectedAccount;
+    if (_selectedAccountId != null) {
+      final matches = accountState.accounts.where((a) => a.id == _selectedAccountId);
+      if (matches.isNotEmpty) {
+        selectedAccount = matches.first;
+      }
+    }
+
+    final activeAccountId = selectedAccount?.id;
+
+    // Filter transactions and accounts specifically for Dashboard
+    final accountScopedTransactions = activeAccountId != null
+        ? transactions.where((t) => t.accountId == activeAccountId).toList()
+        : transactions;
+
+    final accountScopedAccounts = selectedAccount != null
+        ? [selectedAccount]
+        : accountState.accounts;
+
     final filteredTransactions = _filterTransactions(
-      transactions,
+      accountScopedTransactions,
       _selectedPeriod,
     );
 
     final summary = FinancialCalculator.calculate(
-      transactions: transactions,
-      accounts: accountState.accounts,
+      transactions: accountScopedTransactions,
+      accounts: accountScopedAccounts,
       targetDate: _selectedDate,
       period: _selectedPeriod,
     );
@@ -53,7 +74,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final totalIncome = summary.totalIncome;
     final totalExpense = summary.totalExpense;
     final totalInvestment = summary.totalInvestment;
-    final balance = summary.balance;
+    final balance = activeAccountId != null
+        ? (accountState.balances[activeAccountId] ?? summary.balance)
+        : summary.balance;
     final incomeSubtitle = summary.getIncomeSubtitle(currency);
 
     final now = DateTime.now();
@@ -132,29 +155,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Stacked Accounts Card (matching Image 1 with interactive smooth transition)
+            // 1. Stacked Accounts Card (with tap & select support)
             EtherealStackedAccountsCard(
               accounts: accountState.accounts,
               balances: accountState.balances,
               currency: currency,
+              selectedAccountId: _selectedAccountId,
+              onAccountSelected: (account) {
+                setState(() {
+                  _selectedAccountId = account?.id;
+                });
+              },
               onAddAccount: () => _showAddAccountDialog(context),
             ),
             const SizedBox(height: 16),
 
-            // 2. Total Balance Card below Account Cards (matching Image 2)
+            // 2. Total Balance Card below Account Cards
             EtherealTotalBalanceCard(
               balance: balance,
               currency: currency,
-              subtitle: summary.carriedForwardFromPrevious > 0
-                  ? '+$currency${NumberFormat('#,##0').format(summary.carriedForwardFromPrevious)} revenue from ${summary.carriedForwardFromMonthName}'
-                  : (incomeSubtitle ?? 'Available balance'),
-              monthlyBudget: monthlyBudgetLimit > 0 ? monthlyBudgetLimit : null,
+              subtitle: selectedAccount != null
+                  ? '${selectedAccount.name} Balance'
+                  : (summary.carriedForwardFromPrevious > 0
+                      ? '+$currency${NumberFormat('#,##0').format(summary.carriedForwardFromPrevious)} revenue from ${summary.carriedForwardFromMonthName}'
+                      : (incomeSubtitle ?? 'Available balance')),
+              monthlyBudget: selectedAccount == null && monthlyBudgetLimit > 0 ? monthlyBudgetLimit : null,
               spentAmount: totalExpense,
               showActions: false,
             ),
             const SizedBox(height: 14),
 
-            // 3. Income & Expense Cards below Total Balance Card (matching Image 2)
+            // 3. Income & Expense Cards below Total Balance Card
             Row(
               children: [
                 Expanded(
@@ -200,13 +231,51 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 20),
 
             // 5. Recent Transactions Header & List
-            Text(
-              'Recent',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: fintech.primaryText,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Recent',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: fintech.primaryText,
+                  ),
+                ),
+                if (selectedAccount != null)
+                  InkWell(
+                    onTap: () => setState(() => _selectedAccountId = null),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: fintech.accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: fintech.accent.withValues(alpha: 0.3),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.filter_alt_outlined, size: 12, color: fintech.accent),
+                          const SizedBox(width: 4),
+                          Text(
+                            selectedAccount.name,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: fintech.accent,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Icon(Icons.close_rounded, size: 12, color: fintech.accent),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
 
             const SizedBox(height: 12),
@@ -470,7 +539,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AddTransactionScreen(),
+      builder: (context) => AddTransactionScreen(
+        initialAccountId: _selectedAccountId,
+      ),
     );
   }
 
