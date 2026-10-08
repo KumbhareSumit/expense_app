@@ -56,23 +56,16 @@ void main() {
     expect(find.text('BANK ACCOUNT'), findsOneWidget);
     expect(find.text('SALARY WALLET'), findsOneWidget);
 
-    // 1. Tap on the front card ('HOME CASH') -> should cycle to next card ('BANK ACCOUNT')
+    // 1. Tap on the front card ('HOME CASH') -> cycles to next card
     await tester.tap(find.text('HOME CASH'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('SWIPE / TAP FOR NEXT'), findsOneWidget);
 
     // Verify no edit dialog is shown on touch
     expect(find.text('Edit Account'), findsNothing);
 
-    // 2. Swipe down on the card -> should cycle to next card
-    await tester.drag(find.text('SWIPE / TAP FOR NEXT'), const Offset(0, 150));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Edit Account'), findsNothing);
-
-    // 3. Swipe up on the card -> should cycle to next card
-    await tester.drag(find.text('SWIPE / TAP FOR NEXT'), const Offset(0, -150));
+    // 2. Drag horizontally on the front card -> triggers swipe gesture
+    await tester.drag(find.text('BANK ACCOUNT'), const Offset(200, 0));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Edit Account'), findsNothing);

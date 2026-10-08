@@ -155,12 +155,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Stacked Accounts Card (with tap & select support)
+            // 1. Stacked Accounts Card (with interactive swipe & live spend metrics)
             EtherealStackedAccountsCard(
               accounts: accountState.accounts,
               balances: accountState.balances,
               currency: currency,
               selectedAccountId: _selectedAccountId,
+              transactions: transactions,
               onAccountSelected: (account) {
                 setState(() {
                   _selectedAccountId = account?.id;

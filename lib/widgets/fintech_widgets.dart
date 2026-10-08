@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/account_model.dart';
+import '../models/transaction_model.dart';
 import '../utils/app_theme.dart';
 
 /// Clean, reusable Category Icon chip with tint container background
@@ -791,6 +792,9 @@ class EtherealStackedAccountsCard extends StatefulWidget {
   final VoidCallback onAddAccount;
   final ValueChanged<AccountModel?>? onAccountSelected;
   final int? selectedAccountId;
+  final List<TransactionModel>? transactions;
+  final Map<int, double>? accountIncomes;
+  final Map<int, double>? accountExpenses;
 
   const EtherealStackedAccountsCard({
     super.key,
@@ -800,6 +804,9 @@ class EtherealStackedAccountsCard extends StatefulWidget {
     required this.onAddAccount,
     this.onAccountSelected,
     this.selectedAccountId,
+    this.transactions,
+    this.accountIncomes,
+    this.accountExpenses,
   });
 
   @override
@@ -808,8 +815,12 @@ class EtherealStackedAccountsCard extends StatefulWidget {
 }
 
 class _EtherealStackedAccountsCardState
-    extends State<EtherealStackedAccountsCard> {
+    extends State<EtherealStackedAccountsCard>
+    with SingleTickerProviderStateMixin {
   late List<int> _cardOrder;
+  Offset _dragOffset = Offset.zero;
+  late AnimationController _animController;
+  late Animation<Offset> _slideAnimation;
 
   static const List<List<Color>> _cardGradients = [
     [Color(0xFF1E1B4B), Color(0xFF312E81), Color(0xFF4338CA)], // Deep Indigo Metal
@@ -836,7 +847,21 @@ class _EtherealStackedAccountsCardState
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: Offset.zero,
+    ).animate(_animController);
     _initOrder();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   @override
@@ -900,6 +925,66 @@ class _EtherealStackedAccountsCardState
     }
   }
 
+  void _onPanUpdate(DragUpdateDetails details) {
+    if (_cardOrder.length <= 1 || _animController.isAnimating) return;
+    setState(() {
+      _dragOffset += details.delta;
+    });
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    if (_cardOrder.length <= 1 || _animController.isAnimating) return;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final velocity = details.velocity.pixelsPerSecond.dx;
+    final dx = _dragOffset.dx;
+
+    if (dx.abs() > 65 || velocity.abs() > 380) {
+      // Complete swipe ejection
+      final targetX = (dx >= 0 || velocity > 380) && velocity >= -100
+          ? screenWidth * 1.2
+          : -screenWidth * 1.2;
+
+      _slideAnimation = Tween<Offset>(
+        begin: _dragOffset,
+        end: Offset(targetX, _dragOffset.dy * 1.2),
+      ).animate(CurvedAnimation(
+        parent: _animController,
+        curve: Curves.easeOutCubic,
+      ));
+
+      _animController.forward(from: 0.0).then((_) {
+        if (!mounted) return;
+        setState(() {
+          final front = _cardOrder.removeAt(0);
+          _cardOrder.add(front);
+          _dragOffset = Offset.zero;
+          _animController.reset();
+        });
+        if (widget.accounts.isNotEmpty) {
+          final newFrontAccount = widget.accounts[_cardOrder[0]];
+          widget.onAccountSelected?.call(newFrontAccount);
+        }
+      });
+    } else {
+      // Snap back if threshold not met
+      _slideAnimation = Tween<Offset>(
+        begin: _dragOffset,
+        end: Offset.zero,
+      ).animate(CurvedAnimation(
+        parent: _animController,
+        curve: Curves.easeOutBack,
+      ));
+
+      _animController.forward(from: 0.0).then((_) {
+        if (!mounted) return;
+        setState(() {
+          _dragOffset = Offset.zero;
+          _animController.reset();
+        });
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final fintech = context.fintech;
@@ -929,13 +1014,20 @@ class _EtherealStackedAccountsCardState
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${widget.accounts.length}',
-                    style: TextStyle(
-                      color: fintech.mutedText,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: fintech.accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${widget.accounts.length}',
+                      style: TextStyle(
+                        color: fintech.accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
@@ -1021,7 +1113,7 @@ class _EtherealStackedAccountsCardState
       onTap: widget.onAddAccount,
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        height: 170,
+        height: 180,
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
@@ -1062,112 +1154,124 @@ class _EtherealStackedAccountsCardState
 
   Widget _buildStackedDeck(FintechThemeColors fintech) {
     final visibleCount = math.min(widget.accounts.length, 3);
-    const containerHeight = 250.0;
-    const cardHeight = 180.0;
+    const containerHeight = 258.0;
+    const cardHeight = 198.0;
 
-    // We render cards in reverse order (rank visibleCount-1 down to 0)
-    // so rank 0 is at the top of the Flutter stack painting order
-    final stackChildren = <Widget>[];
+    return AnimatedBuilder(
+      animation: _animController,
+      builder: (context, child) {
+        final currentOffset = _animController.isAnimating
+            ? _slideAnimation.value
+            : _dragOffset;
+        final dragProgress =
+            (currentOffset.dx.abs() / 180.0).clamp(0.0, 1.0);
 
-    for (int rank = visibleCount - 1; rank >= 0; rank--) {
-      final accountIndex = _cardOrder[rank];
-      final account = widget.accounts[accountIndex];
-      final balance =
-          widget.balances[account.id] ?? account.openingBalance;
-      final gradient = _getAccountGradient(account, accountIndex);
+        final stackChildren = <Widget>[];
 
-      double topOffset;
-      double horizontalMargin;
-      double shadowOpacity;
+        for (int rank = visibleCount - 1; rank >= 0; rank--) {
+          final accountIndex = _cardOrder[rank];
+          final account = widget.accounts[accountIndex];
+          final balance =
+              widget.balances[account.id] ?? account.openingBalance;
+          final gradient = _getAccountGradient(account, accountIndex);
 
-      if (rank == 0) {
-        // Front Card
-        topOffset = visibleCount == 1 ? 0 : 54.0;
-        horizontalMargin = 0.0;
-        shadowOpacity = 0.40;
-      } else if (rank == 1) {
-        // Middle Card
-        topOffset = visibleCount == 2 ? 0 : 27.0;
-        horizontalMargin = 12.0;
-        shadowOpacity = 0.22;
-      } else {
-        // Back Card
-        topOffset = 0.0;
-        horizontalMargin = 24.0;
-        shadowOpacity = 0.14;
-      }
+          double topOffset;
+          double horizontalMargin;
+          double shadowOpacity;
+          double scale = 1.0;
 
-      final isSelected = widget.selectedAccountId == account.id;
+          if (rank == 0) {
+            // Front Card
+            topOffset = visibleCount == 1 ? 0 : 54.0;
+            horizontalMargin = 0.0;
+            shadowOpacity = 0.40;
+          } else if (rank == 1) {
+            // Middle Card
+            final baseTop = visibleCount == 2 ? 0.0 : 27.0;
+            final targetTop = visibleCount == 2 ? 0.0 : 54.0;
+            topOffset = baseTop + ((targetTop - baseTop) * dragProgress);
+            horizontalMargin = 12.0 * (1.0 - dragProgress);
+            scale = 0.94 + (0.06 * dragProgress);
+            shadowOpacity = 0.22 + (0.18 * dragProgress);
+          } else {
+            // Back Card
+            topOffset = 0.0 + (27.0 * dragProgress);
+            horizontalMargin = 24.0 - (12.0 * dragProgress);
+            scale = 0.88 + (0.06 * dragProgress);
+            shadowOpacity = 0.14 + (0.08 * dragProgress);
+          }
 
-      stackChildren.add(
-        AnimatedPositioned(
-          key: ValueKey(account.id ?? account.name),
-          duration: const Duration(milliseconds: 420),
-          curve: Curves.easeInOutCubic,
-          top: topOffset,
-          left: horizontalMargin,
-          right: horizontalMargin,
-          height: cardHeight,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (rank == 0) {
-                final currentFront = widget.accounts[accountIndex];
-                if (widget.selectedAccountId != currentFront.id) {
-                  widget.onAccountSelected?.call(currentFront);
-                } else {
-                  _nextCard(notify: true);
-                }
-              } else {
-                _bringToFront(rank, notify: true);
-              }
-            },
-            onVerticalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              if (velocity.abs() > 50) {
-                _nextCard(notify: true);
-              }
-            },
-            onHorizontalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              if (velocity.abs() > 50) {
-                _nextCard(notify: true);
-              }
-            },
-            child: _buildCardItem(
-              account: account,
-              balance: balance,
-              gradient: gradient,
-              shadowOpacity: shadowOpacity,
-              isFront: rank == 0,
-              isSelected: isSelected,
-            ),
+          final isSelected = widget.selectedAccountId == account.id;
+
+          Widget cardWidget = _buildCardItem(
+            account: account,
+            balance: balance,
+            gradient: gradient,
+            shadowOpacity: shadowOpacity,
+            isFront: rank == 0,
+            isSelected: isSelected,
+          );
+
+          if (rank == 0) {
+            final tiltAngle = (currentOffset.dx / 320.0) * (math.pi / 16);
+            stackChildren.add(
+              Positioned(
+                key: ValueKey(account.id ?? account.name),
+                top: topOffset,
+                left: horizontalMargin,
+                right: horizontalMargin,
+                height: cardHeight,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanUpdate: _onPanUpdate,
+                  onPanEnd: _onPanEnd,
+                  onTap: () {
+                    final currentFront = widget.accounts[accountIndex];
+                    if (widget.selectedAccountId != currentFront.id) {
+                      widget.onAccountSelected?.call(currentFront);
+                    } else {
+                      _nextCard(notify: true);
+                    }
+                  },
+                  child: Transform.translate(
+                    offset: currentOffset,
+                    child: Transform.rotate(
+                      angle: tiltAngle,
+                      child: cardWidget,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          } else {
+            stackChildren.add(
+              Positioned(
+                key: ValueKey(account.id ?? account.name),
+                top: topOffset,
+                left: horizontalMargin,
+                right: horizontalMargin,
+                height: cardHeight,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _bringToFront(rank, notify: true),
+                  child: Transform.scale(
+                    scale: scale,
+                    child: cardWidget,
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+
+        return SizedBox(
+          height: visibleCount == 1 ? cardHeight : containerHeight,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: stackChildren,
           ),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onVerticalDragEnd: (details) {
-        final velocity = details.primaryVelocity ?? 0;
-        if (velocity.abs() > 50) {
-          _nextCard();
-        }
+        );
       },
-      onHorizontalDragEnd: (details) {
-        final velocity = details.primaryVelocity ?? 0;
-        if (velocity.abs() > 50) {
-          _nextCard();
-        }
-      },
-      child: SizedBox(
-        height: visibleCount == 1 ? cardHeight : containerHeight,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: stackChildren,
-        ),
-      ),
     );
   }
 
@@ -1182,6 +1286,7 @@ class _EtherealStackedAccountsCardState
     final formattedBalance =
         NumberFormat('#,##0.00').format(balance.abs());
     final sign = balance < 0 ? '-' : '';
+    final last4 = (account.id ?? 1).toString().padLeft(4, '0');
 
     // Calculate background brightness to ensure 100% crystal-clear contrast
     final avgLuminance = (gradient.first.computeLuminance() * 0.4 +
@@ -1193,16 +1298,19 @@ class _EtherealStackedAccountsCardState
     final secondaryTextColor = isLight
         ? const Color(0xFF334155)
         : Colors.white.withValues(alpha: 0.85);
+    final mutedTextColor = isLight
+        ? const Color(0xFF64748B)
+        : Colors.white.withValues(alpha: 0.65);
     final iconBgColor = isLight
         ? Colors.black.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.22);
+        : Colors.white.withValues(alpha: 0.20);
     final chipBorderColor = isLight
         ? const Color(0xFFB8860B).withValues(alpha: 0.8)
         : const Color(0xFFFFE082).withValues(alpha: 0.9);
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1223,14 +1331,14 @@ class _EtherealStackedAccountsCardState
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(22),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.white.withValues(alpha: isLight ? 0.20 : 0.12),
+                      Colors.white.withValues(alpha: isLight ? 0.22 : 0.14),
                       Colors.white.withValues(alpha: 0.0),
-                      Colors.black.withValues(alpha: isLight ? 0.04 : 0.15),
+                      Colors.black.withValues(alpha: isLight ? 0.04 : 0.18),
                     ],
                     stops: const [0.0, 0.45, 1.0],
                   ),
@@ -1239,99 +1347,104 @@ class _EtherealStackedAccountsCardState
             ),
           ),
 
-          // Top Row: Account Name, Real EMV Chip, NFC & masked card number / SELECTED badge
+          // Seamless unified card content directly on the card background
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // 1. Top Row: Account Type Badge & Contactless NFC + Selected Tag
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: iconBgColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getAccountIcon(account.type),
+                            size: 13,
+                            color: primaryTextColor,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            account.type.toUpperCase(),
+                            style: TextStyle(
+                              color: primaryTextColor,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: iconBgColor,
-                            borderRadius: BorderRadius.circular(8),
+                        if (isSelected) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isLight
+                                  ? const Color(0xFF0F172A).withValues(alpha: 0.12)
+                                  : Colors.white.withValues(alpha: 0.22),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isLight
+                                    ? const Color(0xFF0F172A).withValues(alpha: 0.25)
+                                    : Colors.white.withValues(alpha: 0.4),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 10,
+                                  color: primaryTextColor,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'ACTIVE',
+                                  style: TextStyle(
+                                    color: primaryTextColor,
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Icon(
-                            _getAccountIcon(account.type),
-                            size: 15,
-                            color: primaryTextColor,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          account.name.toUpperCase(),
-                          style: TextStyle(
-                            color: primaryTextColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        // Contactless NFC Symbol
+                        Icon(
+                          Icons.contactless_rounded,
+                          size: 18,
+                          color: secondaryTextColor.withValues(alpha: 0.85),
                         ),
                       ],
                     ),
-                    if (isSelected)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: isLight
-                              ? const Color(0xFF0F172A).withValues(alpha: 0.12)
-                              : Colors.white.withValues(alpha: 0.22),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isLight
-                                ? const Color(0xFF0F172A).withValues(alpha: 0.25)
-                                : Colors.white.withValues(alpha: 0.4),
-                            width: 0.8,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check_circle_rounded,
-                              size: 11,
-                              color: primaryTextColor,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              'SELECTED',
-                              style: TextStyle(
-                                color: primaryTextColor,
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.6,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Text(
-                        '•••• ${(account.id ?? 1).toString().padLeft(4, '0')}',
-                        style: TextStyle(
-                          color: secondaryTextColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
                   ],
                 ),
-                const SizedBox(height: 10),
 
-                // Realistic EMV Chip & Contactless NFC icon
+                // 2. Middle Row: Metallic Gold EMV Chip & Embossed Card Number
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Metallic Gold EMV Chip
                     Container(
-                      width: 28,
-                      height: 20,
+                      width: 30,
+                      height: 22,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
@@ -1342,7 +1455,7 @@ class _EtherealStackedAccountsCardState
                             Color(0xFFA67C00),
                           ],
                         ),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(4.5),
                         border: Border.all(
                           color: chipBorderColor,
                           width: 0.6,
@@ -1352,7 +1465,7 @@ class _EtherealStackedAccountsCardState
                         children: [
                           Center(
                             child: Container(
-                              width: 14,
+                              width: 15,
                               height: 10,
                               decoration: BoxDecoration(
                                 border: Border.all(
@@ -1366,101 +1479,151 @@ class _EtherealStackedAccountsCardState
                         ],
                       ),
                     ),
+                    const SizedBox(width: 14),
+                    // Embossed 16-Digit Card Number
+                    Text(
+                      '••••  ••••  ••••  $last4',
+                      style: TextStyle(
+                        color: primaryTextColor,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2.2,
+                        fontFamily: 'monospace',
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            offset: const Offset(0.5, 0.8),
+                            blurRadius: 1.0,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // 3. Bottom Row: Balance, Cardholder Name (Account Name), Valid Thru & Mastercard Logo
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // Left: Balance & Cardholder Name (Using Account Name)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Card Balance
+                          Text(
+                            '$sign${widget.currency} $formattedBalance',
+                            style: TextStyle(
+                              color: primaryTextColor,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          // Cardholder Name: Using Account Name
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'CARD HOLDER: ',
+                                style: TextStyle(
+                                  color: mutedTextColor,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                              Flexible(
+                                child: Text(
+                                  account.name.toUpperCase(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: secondaryTextColor,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    // Contactless NFC Symbol
-                    Icon(
-                      Icons.contactless_rounded,
-                      size: 16,
-                      color: secondaryTextColor.withValues(alpha: 0.8),
+
+                    // Right: Valid Thru Date & Authentic Mastercard Overlapping Circles Logo
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'VALID THRU',
+                              style: TextStyle(
+                                color: mutedTextColor,
+                                fontSize: 7.5,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                            Text(
+                              '12/29',
+                              style: TextStyle(
+                                color: secondaryTextColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 10),
+                        // Overlapping Mastercard circles
+                        SizedBox(
+                          width: 32,
+                          height: 20,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Positioned(
+                                left: 0,
+                                child: Container(
+                                  width: 18,
+                                  height: 18,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFFEB001B), // Mastercard Red
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                child: Container(
+                                  width: 18,
+                                  height: 18,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: const Color(0xFFF79E1B).withValues(alpha: 0.90), // Mastercard Amber
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ],
-            ),
-          ),
-
-          // Bottom Frosted Glass Pocket (as shown in fintech design)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: isLight
-                          ? [
-                              Colors.black.withValues(alpha: 0.10),
-                              Colors.black.withValues(alpha: 0.04),
-                            ]
-                          : [
-                              Colors.white.withValues(alpha: 0.28),
-                              Colors.white.withValues(alpha: 0.12),
-                            ],
-                    ),
-                    border: Border(
-                      top: BorderSide(
-                        color: isLight
-                            ? Colors.black.withValues(alpha: 0.12)
-                            : Colors.white.withValues(alpha: 0.35),
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Amount in place of card number (User requested)
-                      Text(
-                        '$sign${widget.currency} $formattedBalance',
-                        style: TextStyle(
-                          color: primaryTextColor,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      // Holder name & Type
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            account.type.toUpperCase(),
-                            style: TextStyle(
-                              color: secondaryTextColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                          Text(
-                            isFront ? 'SWIPE / TAP FOR NEXT' : 'TAP TO SELECT',
-                            style: TextStyle(
-                              color: secondaryTextColor.withValues(alpha: 0.85),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ),
           ),
         ],
