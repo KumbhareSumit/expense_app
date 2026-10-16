@@ -8,12 +8,14 @@ import '../providers/settings_provider.dart';
 import '../providers/account_provider.dart';
 import '../providers/goal_provider.dart';
 import '../providers/debt_provider.dart';
+import '../providers/budget_provider.dart';
 import '../models/account_model.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../models/goal_model.dart';
 import '../models/debt_model.dart';
 import '../utils/icon_helper.dart';
+import '../utils/notification_helper.dart';
 
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
@@ -141,7 +143,74 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     } else {
       ref.read(transactionProvider.notifier).addTransaction(transaction);
     }
+    _checkBudgetAlert(transaction);
     Navigator.of(context).pop();
+  }
+
+  void _checkBudgetAlert(TransactionModel transaction) {
+    if (transaction.type != 'expense') return;
+
+    final budgets = ref.read(budgetProvider);
+    final transactions = ref.read(transactionProvider);
+    final currency = ref.read(settingsProvider).currencySymbol;
+
+    // 1. Check Overall Budget for transaction month/year
+    final overallBudgets = budgets.where(
+      (b) =>
+          b.month == transaction.date.month &&
+          b.year == transaction.date.year &&
+          b.categoryId == null,
+    );
+    if (overallBudgets.isNotEmpty) {
+      final budget = overallBudgets.first;
+      final currentSpent = transactions
+          .where((t) =>
+              t.type == 'expense' &&
+              t.date.month == transaction.date.month &&
+              t.date.year == transaction.date.year &&
+              t.id != transaction.id)
+          .fold<double>(0, (sum, t) => sum + t.amount);
+
+      final totalProjected = currentSpent + transaction.amount;
+      if (budget.limitAmount > 0 && totalProjected > budget.limitAmount) {
+        final exceededBy = totalProjected - budget.limitAmount;
+        NotificationHelper.showBudgetAlert(
+          title: '⚠️ Monthly Budget Exceeded!',
+          body:
+              'You have exceeded your monthly budget of $currency${budget.limitAmount.toStringAsFixed(0)} by $currency${exceededBy.toStringAsFixed(0)}.',
+        );
+        return;
+      }
+    }
+
+    // 2. Check Category Budget
+    final categoryBudgets = budgets.where(
+      (b) =>
+          b.month == transaction.date.month &&
+          b.year == transaction.date.year &&
+          b.categoryId == transaction.categoryId,
+    );
+    if (categoryBudgets.isNotEmpty) {
+      final budget = categoryBudgets.first;
+      final currentSpent = transactions
+          .where((t) =>
+              t.type == 'expense' &&
+              t.categoryId == transaction.categoryId &&
+              t.date.month == transaction.date.month &&
+              t.date.year == transaction.date.year &&
+              t.id != transaction.id)
+          .fold<double>(0, (sum, t) => sum + t.amount);
+
+      final totalProjected = currentSpent + transaction.amount;
+      if (budget.limitAmount > 0 && totalProjected > budget.limitAmount) {
+        final exceededBy = totalProjected - budget.limitAmount;
+        NotificationHelper.showBudgetAlert(
+          title: '⚠️ Category Budget Exceeded!',
+          body:
+              'You have exceeded your budget for this category ($currency${budget.limitAmount.toStringAsFixed(0)}) by $currency${exceededBy.toStringAsFixed(0)}.',
+        );
+      }
+    }
   }
 
   @override

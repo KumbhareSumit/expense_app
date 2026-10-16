@@ -27,6 +27,36 @@ class NotificationHelper {
         // Handle notification tap
       },
     );
+
+    // Request runtime notification permission and create channel for Android
+    final androidImpl = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImpl != null) {
+      await androidImpl.requestNotificationsPermission();
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'budget_alerts',
+        'Budget Alerts',
+        description: 'Notifications for budget limits',
+        importance: Importance.max,
+      );
+      await androidImpl.createNotificationChannel(channel);
+    }
+  }
+
+  static Future<bool?> requestPermission() async {
+    final androidImpl = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidGranted = await androidImpl?.requestNotificationsPermission();
+
+    final iosImpl = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    final iosGranted = await iosImpl?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    return androidGranted ?? iosGranted;
   }
 
   static Future<void> showBudgetAlert({
@@ -43,8 +73,16 @@ class NotificationHelper {
           showWhen: true,
         );
 
+    const DarwinNotificationDetails darwinPlatformSpecifics =
+        DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        );
+
     const NotificationDetails platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
+      iOS: darwinPlatformSpecifics,
     );
 
     await _notificationsPlugin.show(
