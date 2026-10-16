@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_expense_tracker_app/models/account_model.dart';
+import 'package:personal_expense_tracker_app/models/budget_model.dart';
 import 'package:personal_expense_tracker_app/models/transaction_model.dart';
 import 'package:personal_expense_tracker_app/utils/financial_calculator.dart';
 
@@ -171,6 +172,33 @@ void main() {
       );
       expect(sepSummary.totalIncome, 0.0);
       expect(sepSummary.balance, 0.0);
+    });
+
+    test('TransactionModel and BudgetModel safely handle integer amounts and null notes from SQLite', () {
+      final tx = TransactionModel.fromMap({
+        'id': 1,
+        'amount': 250, // int from SQLite
+        'type': 'expense',
+        'categoryId': 10,
+        'date': '2026-10-16T12:00:00.000',
+        'note': null, // null note from SQLite
+        'paymentMode': null,
+        'isRecurring': 0,
+        'accountId': 2,
+      });
+      expect(tx.amount, 250.0);
+      expect(tx.note, '');
+      expect(tx.paymentMode, 'Cash');
+
+      final budget = BudgetModel.fromMap({
+        'id': 5,
+        'month': 10,
+        'year': 2026,
+        'categoryId': null,
+        'limitAmount': 5000, // int from SQLite
+      });
+      expect(budget.limitAmount, 5000.0);
+      expect(budget.categoryId, isNull);
     });
   });
 }

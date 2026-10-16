@@ -25,11 +25,11 @@ class BudgetModel {
 
   factory BudgetModel.fromMap(Map<String, dynamic> map) {
     return BudgetModel(
-      id: map['id'],
-      month: map['month'],
-      year: map['year'],
-      categoryId: map['categoryId'],
-      limitAmount: map['limitAmount'],
+      id: map['id'] as int?,
+      month: map['month'] as int,
+      year: map['year'] as int,
+      categoryId: map['categoryId'] as int?,
+      limitAmount: (map['limitAmount'] as num).toDouble(),
     );
   }
 }

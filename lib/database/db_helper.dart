@@ -341,8 +341,18 @@ class DBHelper {
         where: 'id = ?',
         whereArgs: [account.id],
       );
-  Future<int> deleteAccount(int id) async =>
-      (await database).delete('accounts', where: 'id = ?', whereArgs: [id]);
+  Future<int> deleteAccount(int id) async {
+    final db = await database;
+    return await db.transaction((txn) async {
+      await txn.update(
+        'transactions',
+        {'accountId': null},
+        where: 'accountId = ?',
+        whereArgs: [id],
+      );
+      return await txn.delete('accounts', where: 'id = ?', whereArgs: [id]);
+    });
+  }
 
   Future<Map<int, double>> getAccountBalances() async {
     final db = await database;
@@ -363,6 +373,10 @@ class DBHelper {
         'SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE accountId = ? AND type = ?',
         [id, 'expense'],
       );
+      final investment = await sum(
+        'SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE accountId = ? AND type = ?',
+        [id, 'investment'],
+      );
       final incoming = await sum(
         'SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE toAccountId = ?',
         [id],
@@ -371,7 +385,7 @@ class DBHelper {
         'SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE fromAccountId = ?',
         [id],
       );
-      balances[id] = opening + income - expense + incoming - outgoing;
+      balances[id] = opening + income - expense - investment + incoming - outgoing;
     }
     return balances;
   }
