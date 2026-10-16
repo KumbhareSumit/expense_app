@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/db_helper.dart';
 import '../models/category_model.dart';
+import 'account_provider.dart';
+import 'transaction_provider.dart';
 
 class CategoryNotifier extends StateNotifier<List<CategoryModel>> {
   final DBHelper _dbHelper = DBHelper();
+  final Ref? _ref;
 
-  CategoryNotifier() : super([]) {
+  CategoryNotifier([this._ref]) : super([]) {
     _fetchCategories();
   }
 
@@ -67,6 +70,8 @@ class CategoryNotifier extends StateNotifier<List<CategoryModel>> {
     try {
       await _dbHelper.deleteCategory(id);
       state = state.where((c) => c.id != id).toList();
+      _ref?.invalidate(transactionProvider);
+      await _ref?.read(accountProvider.notifier).refresh();
     } catch (e) {
       // Handle error
     }
@@ -74,5 +79,5 @@ class CategoryNotifier extends StateNotifier<List<CategoryModel>> {
 }
 
 final categoryProvider = StateNotifierProvider<CategoryNotifier, List<CategoryModel>>((ref) {
-  return CategoryNotifier();
+  return CategoryNotifier(ref);
 });

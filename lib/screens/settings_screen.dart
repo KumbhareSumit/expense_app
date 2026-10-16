@@ -12,6 +12,7 @@ import '../providers/category_provider.dart';
 import '../providers/account_provider.dart';
 import '../providers/goal_provider.dart';
 import '../providers/debt_provider.dart';
+import '../providers/budget_provider.dart';
 import '../database/db_helper.dart';
 import 'categories_screen.dart';
 import 'budget_screen.dart';
@@ -236,11 +237,13 @@ class SettingsScreen extends ConsumerWidget {
         allowedExtensions: ['json'],
       );
       if (uri == null) return;
+      if (!context.mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Backup saved successfully')),
       );
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Backup failed: $e')));
     }
@@ -262,17 +265,20 @@ class SettingsScreen extends ConsumerWidget {
 
       await DBHelper().restoreAllData(data);
 
-      // Invalidate providers to reload data
+      // Invalidate all providers to reload data
       ref.invalidate(transactionProvider);
       ref.invalidate(categoryProvider);
       ref.invalidate(accountProvider);
+      ref.invalidate(budgetProvider);
       ref.invalidate(goalProvider);
       ref.invalidate(debtProvider);
 
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Data restored successfully!')),
       );
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Restore failed: $e')));
     }
@@ -296,6 +302,11 @@ class SettingsScreen extends ConsumerWidget {
               await DBHelper().clearAllData();
               ref.invalidate(transactionProvider);
               ref.invalidate(categoryProvider);
+              ref.invalidate(accountProvider);
+              ref.invalidate(budgetProvider);
+              ref.invalidate(goalProvider);
+              ref.invalidate(debtProvider);
+              if (!context.mounted) return;
               Navigator.pop(context);
               ScaffoldMessenger.of(
                 context,

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/db_helper.dart';
 import '../models/account_model.dart';
+import 'transaction_provider.dart';
 
 class AccountState {
   final List<AccountModel> accounts;
@@ -11,7 +12,8 @@ class AccountState {
 
 class AccountNotifier extends StateNotifier<AccountState> {
   final _db = DBHelper();
-  AccountNotifier() : super(const AccountState()) {
+  final Ref? _ref;
+  AccountNotifier([this._ref]) : super(const AccountState()) {
     _load();
   }
 
@@ -40,6 +42,7 @@ class AccountNotifier extends StateNotifier<AccountState> {
   Future<void> deleteAccount(int id) async {
     await _db.deleteAccount(id);
     await _load();
+    _ref?.invalidate(transactionProvider);
   }
 
   Future<void> transfer({
@@ -61,5 +64,5 @@ class AccountNotifier extends StateNotifier<AccountState> {
 }
 
 final accountProvider = StateNotifierProvider<AccountNotifier, AccountState>(
-  (ref) => AccountNotifier(),
+  (ref) => AccountNotifier(ref),
 );
