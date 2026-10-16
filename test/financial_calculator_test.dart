@@ -45,7 +45,7 @@ void main() {
       expect(summary.getIncomeSubtitle('₹'), 'Incl. ₹15,000 from accounts');
     });
 
-    test('Remaining balance of October transfers to November automatically', () {
+    test('Remaining balance of October does NOT rollover into November', () {
       final accounts = [
         AccountModel(
           id: 1,
@@ -101,16 +101,16 @@ void main() {
         now: fixedNow,
       );
 
-      // November should receive October remaining balance (12,000)
-      expect(novSummary.totalIncome, 12000.0);
+      // November should NOT receive October remaining balance
+      expect(novSummary.totalIncome, 0.0);
       expect(novSummary.totalExpense, 0.0);
-      expect(novSummary.balance, 12000.0);
-      expect(novSummary.carriedForwardFromPrevious, 12000.0);
-      expect(novSummary.carriedForwardFromMonthName, 'Oct');
-      expect(novSummary.getIncomeSubtitle('₹'), 'Incl. ₹12,000 from Oct');
+      expect(novSummary.balance, 0.0);
+      expect(novSummary.carriedForwardFromPrevious, 0.0);
+      expect(novSummary.carriedForwardFromMonthName, isNull);
+      expect(novSummary.getIncomeSubtitle('₹'), isNull);
     });
 
-    test('Condition: amount does NOT automatically propagate to all future months beyond next month', () {
+    test('Future months do not show rollover or carried-forward balances', () {
       final accounts = [
         AccountModel(
           id: 1,
@@ -124,7 +124,7 @@ void main() {
       ];
 
       // Fixed current month is October 2026
-      // November 2026 is next month (shows rollover 15,000)
+      // November 2026 is next month: it must NOT show rollover
       final novSummary = FinancialCalculator.calculate(
         transactions: [],
         accounts: accounts,
@@ -132,9 +132,11 @@ void main() {
         period: 'Monthly',
         now: fixedNow,
       );
-      expect(novSummary.totalIncome, 15000.0);
+      expect(novSummary.totalIncome, 0.0);
+      expect(novSummary.balance, 0.0);
+      expect(novSummary.carriedForwardFromPrevious, 0.0);
 
-      // December 2026 is 2 months away (beyond next month): it must NOT automatically show rollover
+      // December 2026 is 2 months away: it must NOT show rollover
       final decSummary = FinancialCalculator.calculate(
         transactions: [],
         accounts: accounts,

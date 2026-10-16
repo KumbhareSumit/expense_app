@@ -177,9 +177,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               currency: currency,
               subtitle: selectedAccount != null
                   ? '${selectedAccount.name} Balance'
-                  : (summary.carriedForwardFromPrevious > 0
-                      ? '+$currency${NumberFormat('#,##0').format(summary.carriedForwardFromPrevious)} revenue from ${summary.carriedForwardFromMonthName}'
-                      : (incomeSubtitle ?? 'Available balance')),
+                  : (incomeSubtitle ?? 'Available balance'),
               monthlyBudget: selectedAccount == null && monthlyBudgetLimit > 0 ? monthlyBudgetLimit : null,
               spentAmount: totalExpense,
               showActions: false,
