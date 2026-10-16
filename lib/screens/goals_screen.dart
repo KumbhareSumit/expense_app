@@ -169,15 +169,16 @@ class GoalsScreen extends ConsumerWidget {
             FilledButton(
               onPressed: () {
                 final amount = double.tryParse(target.text);
-                if (name.text.trim().isEmpty || amount == null || amount <= 0)
+                if (name.text.trim().isEmpty || amount == null || amount <= 0) {
                   return;
+                }
                 final updatedGoal = GoalModel(
                   id: goal?.id,
                   name: name.text.trim(),
                   targetAmount: amount,
                   currentAmount: goal?.currentAmount ?? 0,
                   deadline: deadline,
-                  colorValue: goal?.colorValue ?? Colors.teal.value,
+                  colorValue: goal?.colorValue ?? Colors.teal.toARGB32(),
                   iconCode: goal?.iconCode ?? Icons.flag.codePoint,
                   isCompleted: goal?.isCompleted ?? false,
                 );
@@ -262,7 +263,9 @@ class GoalsScreen extends ConsumerWidget {
           FilledButton(
             onPressed: () {
               final value = double.tryParse(amount.text);
-              if (value == null || value <= 0) return;
+              if (value == null || value <= 0) {
+                return;
+              }
               ref
                   .read(goalProvider.notifier)
                   .addContribution(goal.id!, value, note.text.trim());

@@ -101,7 +101,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
               targetAmount: amount,
               currentAmount: 0,
               deadline: null,
-              colorValue: Colors.teal.value,
+              colorValue: Colors.teal.toARGB32(),
               iconCode: Icons.flag.codePoint,
             ),
           );
@@ -356,10 +356,13 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                   border: const OutlineInputBorder(),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Enter amount';
+                  if (value == null || value.isEmpty) {
+                    return 'Enter amount';
+                  }
                   final amount = double.tryParse(value);
-                  if (amount == null || amount <= 0)
+                  if (amount == null || amount <= 0) {
                     return 'Enter valid amount > 0';
+                  }
                   return null;
                 },
               ),
@@ -740,7 +743,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: colors.map((color) {
-                      final isSelected = selectedColor.value == color.value;
+                      final isSelected =
+                          selectedColor.toARGB32() == color.toARGB32();
                       return InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () =>
@@ -780,7 +784,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                       CategoryModel(
                         name: name,
                         iconCode: selectedIcon.codePoint,
-                        colorValue: selectedColor.value,
+                        colorValue: selectedColor.toARGB32(),
                         type: selectedType,
                         isCustom: true,
                       ),

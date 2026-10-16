@@ -207,8 +207,9 @@ class _DebtsScreenState extends ConsumerState<DebtsScreen> {
             FilledButton(
               onPressed: () {
                 final value = double.tryParse(amount.text);
-                if (person.text.trim().isEmpty || value == null || value <= 0)
+                if (person.text.trim().isEmpty || value == null || value <= 0) {
                   return;
+                }
                 final updatedDebt = DebtModel(
                   id: debt?.id,
                   personName: person.text.trim(),

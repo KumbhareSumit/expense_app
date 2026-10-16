@@ -468,7 +468,8 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
                       spacing: 8,
                       runSpacing: 8,
                       children: _presetColors.map((color) {
-                        final isSelected = selectedColor.value == color.value;
+                        final isSelected =
+                            selectedColor.toARGB32() == color.toARGB32();
                         return InkWell(
                           borderRadius: BorderRadius.circular(20),
                           onTap: () =>
@@ -510,7 +511,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
                           id: existingCategory.id,
                           name: name,
                           iconCode: selectedIcon.codePoint,
-                          colorValue: selectedColor.value,
+                          colorValue: selectedColor.toARGB32(),
                           type: selectedType,
                           isCustom: existingCategory.isCustom,
                         ),
@@ -520,7 +521,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
                         CategoryModel(
                           name: name,
                           iconCode: selectedIcon.codePoint,
-                          colorValue: selectedColor.value,
+                          colorValue: selectedColor.toARGB32(),
                           type: selectedType,
                           isCustom: true,
                         ),
