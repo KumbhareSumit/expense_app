@@ -175,7 +175,7 @@ class SettingsScreen extends ConsumerWidget {
     SettingsNotifier notifier,
   ) {
     final List<String> currencies = [
-      '4',
+      r'$',
       '\u20AC',
       '\u00A3',
       '\u00A5',

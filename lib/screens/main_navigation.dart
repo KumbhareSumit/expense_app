@@ -38,10 +38,13 @@ class _MainNavigationState extends State<MainNavigation> {
 
     final fintech = context.fintech;
 
-    // Android / Mobile phone view (100% untouched)
+    // Android / Mobile phone view
     return Scaffold(
       backgroundColor: fintech.background,
-      body: _screens[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: fintech.navBg,

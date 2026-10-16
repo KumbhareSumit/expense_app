@@ -38,10 +38,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final settings = ref.watch(settingsProvider);
     final currency = settings.currencySymbol;
 
+    final categoryNameMap = <int, String>{
+      for (final c in categories)
+        if (c.id != null) c.id!: c.name.toLowerCase(),
+    };
+    final query = _searchQuery.trim().toLowerCase();
+
     final filteredTransactions = transactions.where((t) {
-      final matchesSearch = t.note.toLowerCase().contains(
-        _searchQuery.toLowerCase(),
-      );
+      final matchesSearch = query.isEmpty ||
+          t.note.toLowerCase().contains(query) ||
+          (categoryNameMap[t.categoryId]?.contains(query) ?? false) ||
+          t.amount.toString().contains(query) ||
+          t.paymentMode.toLowerCase().contains(query);
       final matchesType = _selectedType == null || t.type == _selectedType;
       final matchesCategory =
           _selectedCategoryId == null || t.categoryId == _selectedCategoryId;

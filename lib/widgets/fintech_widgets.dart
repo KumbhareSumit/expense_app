@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/account_model.dart';
@@ -1916,7 +1915,7 @@ class EtherealMetricCard extends StatelessWidget {
   final double amount;
   final String currency;
   final String? subtitle;
-  final String badgeText;
+  final String? badgeText;
   final bool isIncome;
   final VoidCallback? onTap;
 
@@ -1926,7 +1925,7 @@ class EtherealMetricCard extends StatelessWidget {
     required this.amount,
     this.currency = '₹',
     this.subtitle,
-    required this.badgeText,
+    this.badgeText,
     required this.isIncome,
     this.onTap,
   });
@@ -1972,26 +1971,27 @@ class EtherealMetricCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: badgeBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: badgeBorderColor,
-                      width: 0.8,
+                if (badgeText != null && badgeText!.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: badgeBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: badgeBorderColor,
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      badgeText!,
+                      style: TextStyle(
+                        color: badgeTextColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  child: Text(
-                    badgeText,
-                    style: TextStyle(
-                      color: badgeTextColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
