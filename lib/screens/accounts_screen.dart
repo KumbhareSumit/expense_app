@@ -7,8 +7,6 @@ import '../providers/account_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
 import '../widgets/fintech_widgets.dart';
-import 'debts_screen.dart';
-import 'goals_screen.dart';
 
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
@@ -84,43 +82,6 @@ class AccountsScreen extends ConsumerWidget {
                     currency,
                   ),
                 ),
-              const SizedBox(height: 24),
-
-              // 3. Planning Section
-              Text(
-                'Planning',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: fintech.primaryText,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              _planningCard(
-                context,
-                icon: Icons.flag_rounded,
-                iconColor: const Color(0xFF3EA8FF),
-                title: 'Savings Goals',
-                subtitle: 'Track money saved for something important',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const GoalsScreen()),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              _planningCard(
-                context,
-                icon: Icons.handshake_rounded,
-                iconColor: const Color(0xFFFFB020),
-                title: 'Debt & Loans',
-                subtitle: 'Track money owed to you or by you',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const DebtsScreen()),
-                ),
-              ),
             ],
           ),
 
@@ -302,45 +263,6 @@ class AccountsScreen extends ConsumerWidget {
     }
   }
 
-  Widget _planningCard(
-    BuildContext context, {
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    final fintech = context.fintech;
-    return Container(
-      decoration: BoxDecoration(
-        color: fintech.cardSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: fintech.cardBorder, width: 1),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CategoryIcon(icon: icon, color: iconColor),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            color: fintech.primaryText,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: fintech.mutedText,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        trailing: Icon(Icons.chevron_right_rounded, color: fintech.mutedText, size: 20),
-        onTap: onTap,
-      ),
-    );
-  }
 
   Widget _buildMiniCardPreview({
     required String name,

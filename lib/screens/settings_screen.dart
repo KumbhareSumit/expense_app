@@ -10,8 +10,6 @@ import '../providers/settings_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/account_provider.dart';
-import '../providers/goal_provider.dart';
-import '../providers/debt_provider.dart';
 import '../providers/budget_provider.dart';
 import '../database/db_helper.dart';
 import 'categories_screen.dart';
@@ -267,13 +265,10 @@ class SettingsScreen extends ConsumerWidget {
 
       await DBHelper().restoreAllData(data);
 
-      // Invalidate all providers to reload data
       ref.invalidate(transactionProvider);
       ref.invalidate(categoryProvider);
       ref.invalidate(accountProvider);
       ref.invalidate(budgetProvider);
-      ref.invalidate(goalProvider);
-      ref.invalidate(debtProvider);
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -306,8 +301,6 @@ class SettingsScreen extends ConsumerWidget {
               ref.invalidate(categoryProvider);
               ref.invalidate(accountProvider);
               ref.invalidate(budgetProvider);
-              ref.invalidate(goalProvider);
-              ref.invalidate(debtProvider);
               if (!context.mounted) return;
               Navigator.pop(context);
               ScaffoldMessenger.of(

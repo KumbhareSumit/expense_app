@@ -50,14 +50,13 @@ void main() {
     });
   });
 
-  testWidgets('CategoriesScreen displays Expenses, Income, and Investments tabs and categories', (
+  testWidgets('CategoriesScreen displays Expenses and Income tabs and categories', (
     WidgetTester tester,
   ) async {
     final mockCategories = [
       CategoryModel(id: 1, name: 'Food', iconCode: 58746, colorValue: 0xFFF44336, type: 'expense', isCustom: false),
       CategoryModel(id: 2, name: 'Salary', iconCode: 57895, colorValue: 0xFF4CAF50, type: 'income', isCustom: false),
       CategoryModel(id: 3, name: 'Freelance', iconCode: 57895, colorValue: 0xFF2196F3, type: 'income', isCustom: true),
-      CategoryModel(id: 4, name: 'Stocks', iconCode: 58941, colorValue: 0xFF009688, type: 'investment', isCustom: true),
     ];
 
     await tester.pumpWidget(
@@ -75,7 +74,6 @@ void main() {
     // Verify Tab headers with counts
     expect(find.text('Expenses (1)'), findsOneWidget);
     expect(find.text('Income (2)'), findsOneWidget);
-    expect(find.text('Investments (1)'), findsOneWidget);
 
     // Initial tab is Expenses
     expect(find.text('Food'), findsOneWidget);
@@ -87,19 +85,6 @@ void main() {
     // Verify Income categories are displayed
     expect(find.text('Salary'), findsOneWidget);
     expect(find.text('Freelance'), findsOneWidget);
-
-    // Switch to Investments tab
-    await tester.tap(find.text('Investments (1)'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Stocks'), findsOneWidget);
-
-    // Verify FAB on Investments tab displays 'Add Investment'
-    expect(find.text('Add Investment'), findsOneWidget);
-
-    // Switch back to Income tab and verify FAB label and action
-    await tester.tap(find.text('Income (2)'));
-    await tester.pumpAndSettle();
     expect(find.text('Add Income'), findsOneWidget);
 
     // Tap FAB and ensure dialog opens with 'Income' selected

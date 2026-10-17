@@ -231,13 +231,6 @@ class DBHelper {
         type: 'income',
         isCustom: false,
       ),
-      CategoryModel(
-        name: 'Investment',
-        iconCode: 58941,
-        colorValue: 0xFF009688,
-        type: 'investment',
-        isCustom: false,
-      ),
     ];
 
     for (var category in defaultCategories) {
@@ -373,10 +366,6 @@ class DBHelper {
         'SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE accountId = ? AND type = ?',
         [id, 'expense'],
       );
-      final investment = await sum(
-        'SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE accountId = ? AND type = ?',
-        [id, 'investment'],
-      );
       final incoming = await sum(
         'SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE toAccountId = ?',
         [id],
@@ -385,7 +374,7 @@ class DBHelper {
         'SELECT COALESCE(SUM(amount), 0) FROM transfers WHERE fromAccountId = ?',
         [id],
       );
-      balances[id] = opening + income - expense - investment + incoming - outgoing;
+      balances[id] = opening + income - expense + incoming - outgoing;
     }
     return balances;
   }

@@ -5,7 +5,6 @@ import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/account_provider.dart';
-import '../providers/debt_provider.dart';
 import '../providers/budget_provider.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
@@ -34,7 +33,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final transactions = ref.watch(transactionProvider);
     final categories = ref.watch(categoryProvider);
     final settings = ref.watch(settingsProvider);
-    final debts = ref.watch(debtProvider);
     final budgets = ref.watch(budgetProvider);
     final currency = settings.currencySymbol;
     final accountState = ref.watch(accountProvider);
@@ -73,7 +71,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final totalIncome = summary.totalIncome;
     final totalExpense = summary.totalExpense;
-    final totalInvestment = summary.totalInvestment;
     final balance = activeAccountId != null
         ? (accountState.balances[activeAccountId] ?? summary.balance)
         : summary.balance;
@@ -101,19 +98,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           monthlyBudgetLimit = overallAny.last.limitAmount;
         } else {
           monthlyBudgetLimit = budgets.fold(0.0, (sum, b) => sum + b.limitAmount);
-        }
-      }
-    }
-
-    double owedToMe = 0;
-    double iOwe = 0;
-    for (var d in debts) {
-      if (!d.isSettled) {
-        final remaining = d.totalAmount - d.paidAmount;
-        if (d.type == 'lent') {
-          owedToMe += remaining;
-        } else {
-          iOwe += remaining;
         }
       }
     }
@@ -208,23 +192,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ],
             ),
 
-            // 4. Investment / Debt Cards if applicable
-            if (totalInvestment > 0) ...[
-              const SizedBox(height: 12),
-              StatCard(
-                title: 'Investment',
-                amount: totalInvestment,
-                color: const Color(0xFFB58CFF),
-                icon: Icons.trending_up_rounded,
-                currency: currency,
-              ),
-            ],
-
-            if (owedToMe > 0 || iOwe > 0) ...[
-              const SizedBox(height: 12),
-              _buildDebtsLoansCard(owedToMe, iOwe, currency),
-            ],
-
             const SizedBox(height: 20),
 
             // 5. Recent Transactions Header & List
@@ -292,86 +259,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildDebtsLoansCard(double owedToMe, double iOwe, String currency) {
-    final fintech = context.fintech;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: fintech.cardSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: fintech.cardBorder, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.handshake_outlined, color: fintech.accent, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Debts & Loans',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: fintech.primaryText,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Owed to me',
-                      style: TextStyle(fontSize: 12, color: fintech.mutedText),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$currency${owedToMe.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: fintech.income,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(width: 1, height: 32, color: fintech.cardBorder),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'I Owe',
-                        style: TextStyle(fontSize: 12, color: fintech.mutedText),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$currency${iOwe.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: fintech.expense,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildTransactionList(
     List<TransactionModel> transactions,

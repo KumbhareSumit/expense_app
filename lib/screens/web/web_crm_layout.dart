@@ -7,8 +7,6 @@ import '../../models/transaction_model.dart';
 import '../../providers/account_provider.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/category_provider.dart';
-import '../../providers/debt_provider.dart';
-import '../../providers/goal_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../utils/app_theme.dart';
@@ -20,8 +18,6 @@ import '../add_transaction_screen.dart';
 import '../analysis_screen.dart';
 import '../budget_screen.dart';
 import '../categories_screen.dart';
-import '../debts_screen.dart';
-import '../goals_screen.dart';
 import '../history_screen.dart';
 import '../settings_screen.dart';
 
@@ -45,8 +41,6 @@ class _WebCrmLayoutState extends ConsumerState<WebCrmLayout> {
     _NavMenuItem(icon: Icons.history_rounded, label: 'History'),
     _NavMenuItem(icon: Icons.account_balance_wallet_rounded, label: 'Budgets'),
     _NavMenuItem(icon: Icons.credit_card_rounded, label: 'Accounts'),
-    _NavMenuItem(icon: Icons.handshake_outlined, label: 'Debts & Loans'),
-    _NavMenuItem(icon: Icons.stars_rounded, label: 'Savings Goals'),
     _NavMenuItem(icon: Icons.category_outlined, label: 'Categories'),
     _NavMenuItem(icon: Icons.settings_outlined, label: 'Settings'),
   ];
@@ -304,12 +298,8 @@ class _WebCrmLayoutState extends ConsumerState<WebCrmLayout> {
       case 4:
         return const AccountsScreen();
       case 5:
-        return const DebtsScreen();
-      case 6:
-        return const GoalsScreen();
-      case 7:
         return const CategoriesScreen();
-      case 8:
+      case 6:
         return const SettingsScreen();
       default:
         return _buildCrmDashboard(context);
@@ -321,9 +311,7 @@ class _WebCrmLayoutState extends ConsumerState<WebCrmLayout> {
     final transactions = ref.watch(transactionProvider);
     final categories = ref.watch(categoryProvider);
     final settings = ref.watch(settingsProvider);
-    final debts = ref.watch(debtProvider);
     final budgets = ref.watch(budgetProvider);
-    final goals = ref.watch(goalProvider);
     final accountState = ref.watch(accountProvider);
     final currency = settings.currencySymbol;
 
@@ -352,19 +340,6 @@ class _WebCrmLayoutState extends ConsumerState<WebCrmLayout> {
     final currentMonthExpenses = transactions
         .where((t) => t.type == 'expense' && t.date.month == now.month && t.date.year == now.year)
         .fold(0.0, (sum, t) => sum + t.amount);
-
-    double owedToMe = 0;
-    double iOwe = 0;
-    for (var d in debts) {
-      if (!d.isSettled) {
-        final remaining = d.totalAmount - d.paidAmount;
-        if (d.type == 'lent') {
-          owedToMe += remaining;
-        } else {
-          iOwe += remaining;
-        }
-      }
-    }
 
     final dateHeaderStr = DateFormat('EEEE, d MMMM yyyy').format(now);
 
@@ -612,14 +587,7 @@ class _WebCrmLayoutState extends ConsumerState<WebCrmLayout> {
                             currentMonthExpenses,
                             currency,
                           ),
-                          const SizedBox(height: 20),
 
-                          // Debts Summary Card
-                          _buildDebtsSummaryCard(owedToMe, iOwe, currency),
-                          const SizedBox(height: 20),
-
-                          // Active Savings Goals Card
-                          _buildGoalsCard(goals, currency),
                         ],
                       ),
                     ),
@@ -1132,222 +1100,7 @@ class _WebCrmLayoutState extends ConsumerState<WebCrmLayout> {
     );
   }
 
-  /// Right Panel: Debts & Loans Summary
-  Widget _buildDebtsSummaryCard(double owedToMe, double iOwe, String currency) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Debts & Loans',
-                style: TextStyle(
-                  color: FintechColors.primaryText,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              InkWell(
-                onTap: () => setState(() => _selectedNavIndex = 5),
-                child: const Text(
-                  'Details',
-                  style: TextStyle(
-                    color: FintechColors.accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: FintechColors.navBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: FintechColors.income.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Owed to me',
-                        style: TextStyle(
-                          color: FintechColors.mutedText,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$currency${NumberFormat('#,##0').format(owedToMe)}',
-                        style: const TextStyle(
-                          color: FintechColors.income,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: FintechColors.navBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: FintechColors.expense.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'I owe',
-                        style: TextStyle(
-                          color: FintechColors.mutedText,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$currency${NumberFormat('#,##0').format(iOwe)}',
-                        style: const TextStyle(
-                          color: FintechColors.expense,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  /// Right Panel: Active Savings Goals
-  Widget _buildGoalsCard(List<dynamic> goals, String currency) {
-    final activeGoals = goals.take(3).toList();
-
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: FintechColors.cardSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: FintechColors.cardBorder, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Savings Goals',
-                style: TextStyle(
-                  color: FintechColors.primaryText,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              InkWell(
-                onTap: () => setState(() => _selectedNavIndex = 6),
-                child: const Text(
-                  'All Goals',
-                  style: TextStyle(
-                    color: FintechColors.accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (activeGoals.isEmpty)
-            const Text(
-              'No active savings goals',
-              style: TextStyle(color: FintechColors.mutedText, fontSize: 13),
-            )
-          else
-            Column(
-              children: activeGoals.map((g) {
-                final target = g.targetAmount as double;
-                final current = g.currentAmount as double;
-                final progress =
-                    target > 0 ? (current / target).clamp(0.0, 1.0) : 0.0;
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            g.name as String,
-                            style: const TextStyle(
-                              color: FintechColors.primaryText,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            '$currency${NumberFormat('#,##0').format(current)} / $currency${NumberFormat('#,##0').format(target)}',
-                            style: const TextStyle(
-                              color: FintechColors.mutedText,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 5,
-                          backgroundColor: FintechColors.navBg,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            FintechColors.accent,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-        ],
-      ),
-    );
-  }
 
   void _openAddTransaction(BuildContext context) {
     showDialog(

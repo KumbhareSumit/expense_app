@@ -45,11 +45,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
     int initialIndex = 0;
     if (widget.initialType?.toLowerCase().trim() == 'income') {
       initialIndex = 1;
-    } else if (widget.initialType?.toLowerCase().trim() == 'investment') {
-      initialIndex = 2;
     }
     _tabController = TabController(
-      length: 3,
+      length: 2,
       vsync: this,
       initialIndex: initialIndex,
     );
@@ -69,8 +67,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
     switch (_tabController.index) {
       case 1:
         return 'income';
-      case 2:
-        return 'investment';
       default:
         return 'expense';
     }
@@ -94,21 +90,11 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
       return matchesType && matchesSearch;
     }).toList();
 
-    final investments = categories.where((c) {
-      final matchesType = c.type.trim().toLowerCase() == 'investment';
-      final matchesSearch = _searchQuery.isEmpty ||
-          c.name.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesType && matchesSearch;
-    }).toList();
-
     final totalExpensesCount = categories
         .where((c) => c.type.trim().toLowerCase() == 'expense')
         .length;
     final totalIncomeCount = categories
         .where((c) => c.type.trim().toLowerCase() == 'income')
-        .length;
-    final totalInvestmentsCount = categories
-        .where((c) => c.type.trim().toLowerCase() == 'investment')
         .length;
 
     final theme = Theme.of(context);
@@ -132,7 +118,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
           tabs: [
             Tab(text: 'Expenses ($totalExpensesCount)'),
             Tab(text: 'Income ($totalIncomeCount)'),
-            Tab(text: 'Investments ($totalInvestmentsCount)'),
           ],
         ),
       ),
@@ -174,7 +159,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
               children: [
                 _categoryList(context, expenses, 'expense'),
                 _categoryList(context, income, 'income'),
-                _categoryList(context, investments, 'investment'),
               ],
             ),
           ),
@@ -190,11 +174,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
         ),
         icon: const Icon(Icons.add_rounded, size: 22),
         label: Text(
-          _tabController.index == 1
-              ? 'Add Income'
-              : _tabController.index == 2
-                  ? 'Add Investment'
-                  : 'Add Expense',
+          _tabController.index == 1 ? 'Add Income' : 'Add Expense',
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
         ),
       ),
@@ -207,11 +187,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
     String categoryType,
   ) {
     if (categoryList.isEmpty) {
-      final typeLabel = categoryType == 'income'
-          ? 'Income'
-          : categoryType == 'investment'
-              ? 'Investment'
-              : 'Expense';
+      final typeLabel = categoryType == 'income' ? 'Income' : 'Expense';
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -387,10 +363,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
                         DropdownMenuItem(
                           value: 'income',
                           child: Text('Income'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'investment',
-                          child: Text('Investment'),
                         ),
                       ],
                       onChanged: (value) {

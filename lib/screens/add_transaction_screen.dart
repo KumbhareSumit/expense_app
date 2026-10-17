@@ -6,14 +6,10 @@ import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/account_provider.dart';
-import '../providers/goal_provider.dart';
-import '../providers/debt_provider.dart';
 import '../providers/budget_provider.dart';
 import '../models/account_model.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
-import '../models/goal_model.dart';
-import '../models/debt_model.dart';
 import '../utils/icon_helper.dart';
 import '../utils/notification_helper.dart';
 
@@ -36,7 +32,6 @@ class AddTransactionScreen extends ConsumerStatefulWidget {
 class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
-  final _nameController = TextEditingController();
   final _noteController = TextEditingController();
 
   String _type = 'expense';
@@ -44,7 +39,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   DateTime _selectedDate = DateTime.now();
   String _paymentMode = 'Cash'; // Default payment mode
   int? _selectedAccountId;
-  String _debtType = 'lent';
 
 
   bool get _isEditing => widget.transaction != null;
@@ -69,7 +63,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   @override
   void dispose() {
     _amountController.dispose();
-    _nameController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -92,37 +85,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final amount = double.tryParse(_amountController.text) ?? 0;
-    if (_type == 'goal') {
-      ref
-          .read(goalProvider.notifier)
-          .addGoal(
-            GoalModel(
-              name: _nameController.text.trim(),
-              targetAmount: amount,
-              currentAmount: 0,
-              deadline: null,
-              colorValue: Colors.teal.toARGB32(),
-              iconCode: Icons.flag.codePoint,
-            ),
-          );
-      Navigator.of(context).pop();
-      return;
-    }
-    if (_type == 'debt') {
-      ref
-          .read(debtProvider.notifier)
-          .addDebt(
-            DebtModel(
-              personName: _nameController.text.trim(),
-              totalAmount: amount,
-              type: _debtType,
-              date: DateTime.now(),
-              note: _noteController.text.trim(),
-            ),
-          );
-      Navigator.of(context).pop();
-      return;
-    }
 
 
     final transaction = TransactionModel(
@@ -219,10 +181,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     final filteredCategories = categories
         .where((c) => c.type.trim().toLowerCase() == _type.trim().toLowerCase())
         .toList();
-    final isTransaction =
-        _type == 'expense' || _type == 'income' || _type == 'investment';
-    final isGoal = _type == 'goal';
-    final isDebt = _type == 'debt';
     final settings = ref.watch(settingsProvider);
     final accountState = ref.watch(accountProvider);
     final currency = settings.currencySymbol;
@@ -284,12 +242,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                 items: const [
                   DropdownMenuItem(value: 'expense', child: Text('Expense')),
                   DropdownMenuItem(value: 'income', child: Text('Income')),
-                  DropdownMenuItem(
-                    value: 'investment',
-                    child: Text('Investment'),
-                  ),
-                  DropdownMenuItem(value: 'goal', child: Text('Savings Goal')),
-                  DropdownMenuItem(value: 'debt', child: Text('Debt / Loan')),
                 ],
                 onChanged: _isEditing
                     ? null
@@ -300,49 +252,26 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
               ),
               const SizedBox(height: 20),
 
-              if (isTransaction)
-                DropdownButtonFormField<int?>(
-                  initialValue: selectedAccountId,
-                  decoration: const InputDecoration(
-                    labelText: 'Account / Wallet *',
-                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-                  ),
-                  items: accountOptions.values
-                      .map(
-                        (account) => DropdownMenuItem<int?>(
-                          value: account.id,
-                          child: Text(account.name),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => _selectedAccountId = value),
-                  validator: (value) =>
-                      value == null ? 'Select an account or wallet' : null,
+              DropdownButtonFormField<int?>(
+                initialValue: selectedAccountId,
+                decoration: const InputDecoration(
+                  labelText: 'Account / Wallet *',
+                  prefixIcon: Icon(Icons.account_balance_wallet_outlined),
                 ),
-              if (isTransaction) const SizedBox(height: 20),
-
-              if (isGoal || isDebt)
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: isGoal ? 'Goal name *' : 'Person name *',
-                    prefixIcon: Icon(
-                      isGoal ? Icons.flag_outlined : Icons.person_outline,
-                    ),
-                    border: const OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if ((isGoal || isDebt) &&
-                        (value == null || value.trim().isEmpty)) {
-                      return isGoal
-                          ? 'Enter a goal name'
-                          : 'Enter a person name';
-                    }
-                    return null;
-                  },
-                ),
-              if (isGoal || isDebt) const SizedBox(height: 20),
+                items: accountOptions.values
+                    .map(
+                      (account) => DropdownMenuItem<int?>(
+                        value: account.id,
+                        child: Text(account.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) =>
+                    setState(() => _selectedAccountId = value),
+                validator: (value) =>
+                    value == null ? 'Select an account or wallet' : null,
+              ),
+              const SizedBox(height: 20),
 
               // Amount Field
               TextFormField(
@@ -367,230 +296,209 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                 },
               ),
               const SizedBox(height: 20),
-
-
-              if (isDebt)
-                DropdownButtonFormField<String>(
-                  initialValue: _debtType,
-                  decoration: const InputDecoration(
-                    labelText: 'Debt type',
-                    prefixIcon: Icon(Icons.swap_horiz),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'lent', child: Text('Owed to me')),
-                    DropdownMenuItem(value: 'borrowed', child: Text('I owe')),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _debtType = value ?? _debtType),
-                ),
-              if (isDebt) const SizedBox(height: 20),
-
               // Category Selector
-              if (isTransaction) ...[
-                FormField<int>(
-                  key: ValueKey(_type),
-                  initialValue: _selectedCategoryId,
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Please select a category';
-                    }
-                    return null;
-                  },
-                  builder: (formFieldState) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Category * (${_type.toUpperCase()})',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+              FormField<int>(
+                key: ValueKey(_type),
+                initialValue: _selectedCategoryId,
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select a category';
+                  }
+                  return null;
+                },
+                builder: (formFieldState) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Category * (${_type.toUpperCase()})',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => _showQuickAddCategoryDialog(
+                              context,
+                              formFieldState,
                             ),
-                            TextButton.icon(
-                              onPressed: () => _showQuickAddCategoryDialog(
-                                context,
-                                formFieldState,
-                              ),
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Add Category'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        SizedBox(
-                          height: 120,
-                          child: filteredCategories.isEmpty
-                              ? Center(
-                                  child: TextButton.icon(
-                                    onPressed: () =>
-                                        _showQuickAddCategoryDialog(
-                                      context,
-                                      formFieldState,
-                                    ),
-                                    icon: const Icon(Icons.add_circle_outline),
-                                    label: Text(
-                                      'Add first ${_type.toUpperCase()} category',
-                                    ),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('Add Category'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        height: 120,
+                        child: filteredCategories.isEmpty
+                            ? Center(
+                                child: TextButton.icon(
+                                  onPressed: () =>
+                                      _showQuickAddCategoryDialog(
+                                    context,
+                                    formFieldState,
                                   ),
-                                )
-                              : ListView.separated(
-                                  scrollDirection: Axis.horizontal,
-                                  itemCount: filteredCategories.length + 1,
-                                  separatorBuilder: (ctx, idx) =>
-                                      const SizedBox(width: 12),
-                                  itemBuilder: (context, index) {
-                                    if (index == filteredCategories.length) {
-                                      return InkWell(
-                                        borderRadius: BorderRadius.circular(16),
-                                        onTap: () =>
-                                            _showQuickAddCategoryDialog(
-                                          context,
-                                          formFieldState,
-                                        ),
-                                        child: SizedBox(
-                                          width: 72,
-                                          child: Column(
-                                            children: [
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.all(12),
-                                                decoration: BoxDecoration(
-                                                  color: theme.colorScheme
-                                                      .surfaceContainerHighest
-                                                      .withValues(alpha: .5),
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: theme
-                                                        .colorScheme.outline
-                                                        .withValues(alpha: .5),
-                                                    style: BorderStyle.solid,
-                                                  ),
-                                                ),
-                                                child: Icon(
-                                                  Icons.add,
-                                                  color: theme
-                                                      .colorScheme.primary,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              const Text(
-                                                'New',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight:
-                                                      FontWeight.normal,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    }
-
-                                    final cat = filteredCategories[index];
-                                    final isSelected =
-                                        _selectedCategoryId == cat.id;
+                                  icon: const Icon(Icons.add_circle_outline),
+                                  label: Text(
+                                    'Add first ${_type.toUpperCase()} category',
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: filteredCategories.length + 1,
+                                separatorBuilder: (ctx, idx) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (context, index) {
+                                  if (index == filteredCategories.length) {
                                     return InkWell(
                                       borderRadius: BorderRadius.circular(16),
-                                      onTap: () {
-                                        setState(
-                                            () => _selectedCategoryId = cat.id);
-                                        formFieldState.didChange(cat.id);
-                                      },
+                                      onTap: () =>
+                                          _showQuickAddCategoryDialog(
+                                        context,
+                                        formFieldState,
+                                      ),
                                       child: SizedBox(
                                         width: 72,
                                         child: Column(
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.all(12),
+                                              padding:
+                                                  const EdgeInsets.all(12),
                                               decoration: BoxDecoration(
-                                                color: isSelected
-                                                    ? Color(cat.colorValue)
-                                                    : Color(cat.colorValue)
-                                                        .withValues(alpha: .15),
+                                                color: theme.colorScheme
+                                                    .surfaceContainerHighest
+                                                    .withValues(alpha: .5),
                                                 shape: BoxShape.circle,
-                                                border: isSelected
-                                                    ? Border.all(
-                                                        color: theme
-                                                            .colorScheme.onSurface,
-                                                        width: 2,
-                                                      )
-                                                    : null,
+                                                border: Border.all(
+                                                  color: theme
+                                                      .colorScheme.outline
+                                                      .withValues(alpha: .5),
+                                                  style: BorderStyle.solid,
+                                                ),
                                               ),
                                               child: Icon(
-                                                IconHelper.getIcon(cat.iconCode),
-                                                color: isSelected
-                                                    ? (Color(cat.colorValue)
-                                                                  .computeLuminance() >
-                                                              .5
-                                                          ? Colors.black87
-                                                          : Colors.white)
-                                                    : Color(cat.colorValue),
+                                                Icons.add,
+                                                color: theme
+                                                    .colorScheme.primary,
                                               ),
                                             ),
                                             const SizedBox(height: 6),
-                                            Text(
-                                              cat.name,
+                                            const Text(
+                                              'New',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.bold
-                                                    : FontWeight.normal,
+                                                fontWeight:
+                                                    FontWeight.normal,
                                               ),
-                                              textAlign: TextAlign.center,
-                                              maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ],
                                         ),
                                       ),
                                     );
-                                  },
-                                ),
-                        ),
-                        if (formFieldState.hasError)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              formFieldState.errorText!,
-                              style: TextStyle(
-                                color: theme.colorScheme.error,
-                                fontSize: 12,
+                                  }
+
+                                  final cat = filteredCategories[index];
+                                  final isSelected =
+                                      _selectedCategoryId == cat.id;
+                                  return InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    onTap: () {
+                                      setState(
+                                          () => _selectedCategoryId = cat.id);
+                                      formFieldState.didChange(cat.id);
+                                    },
+                                    child: SizedBox(
+                                      width: 72,
+                                      child: Column(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? Color(cat.colorValue)
+                                                  : Color(cat.colorValue)
+                                                      .withValues(alpha: .15),
+                                              shape: BoxShape.circle,
+                                              border: isSelected
+                                                  ? Border.all(
+                                                      color: theme
+                                                          .colorScheme.onSurface,
+                                                      width: 2,
+                                                    )
+                                                  : null,
+                                            ),
+                                            child: Icon(
+                                              IconHelper.getIcon(cat.iconCode),
+                                              color: isSelected
+                                                  ? (Color(cat.colorValue)
+                                                                .computeLuminance() >
+                                                            .5
+                                                        ? Colors.black87
+                                                        : Colors.white)
+                                                  : Color(cat.colorValue),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            cat.name,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.normal,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
+                      ),
+                      if (formFieldState.hasError)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            formFieldState.errorText!,
+                            style: TextStyle(
+                              color: theme.colorScheme.error,
+                              fontSize: 12,
                             ),
                           ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-              ],
+                        ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
 
               // Date Picker
-              if (isTransaction)
-                InkWell(
-                  onTap: () => _selectDate(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: theme.colorScheme.outline),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(DateFormat('MMM dd, yyyy').format(_selectedDate)),
-                        const Icon(Icons.calendar_today),
-                      ],
-                    ),
+              InkWell(
+                onTap: () => _selectDate(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: theme.colorScheme.outline),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(DateFormat('MMM dd, yyyy').format(_selectedDate)),
+                      const Icon(Icons.calendar_today),
+                    ],
                   ),
                 ),
-              if (isTransaction) const SizedBox(height: 20),
+              ),
+              const SizedBox(height: 20),
 
               // Note Field
               TextFormField(
@@ -609,13 +517,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                 child: FilledButton(
                   onPressed: _submitData,
                   child: Text(
-                    _isEditing
-                        ? 'Update Transaction'
-                        : isGoal
-                        ? 'Save Savings Goal'
-                        : isDebt
-                        ? 'Save Debt / Loan'
-                        : 'Save Transaction',
+                    _isEditing ? 'Update Transaction' : 'Save Transaction',
                     style: const TextStyle(fontSize: 18),
                   ),
                 ),
