@@ -8,8 +8,6 @@ import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../models/budget_model.dart';
 import '../models/account_model.dart';
-import '../models/goal_model.dart';
-import '../models/debt_model.dart';
 import '../utils/encryption_helper.dart';
 
 class DBHelper {
@@ -132,24 +130,9 @@ class DBHelper {
     await db.execute(
       'CREATE TABLE IF NOT EXISTS transfers (id INTEGER PRIMARY KEY AUTOINCREMENT, fromAccountId INTEGER NOT NULL, toAccountId INTEGER NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, note TEXT, FOREIGN KEY (fromAccountId) REFERENCES accounts(id) ON DELETE CASCADE, FOREIGN KEY (toAccountId) REFERENCES accounts(id) ON DELETE CASCADE)',
     );
-    await db.execute(
-      'CREATE TABLE IF NOT EXISTS goals (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, targetAmount REAL NOT NULL, currentAmount REAL NOT NULL, deadline TEXT, colorValue INTEGER NOT NULL, iconCode INTEGER NOT NULL, isCompleted INTEGER NOT NULL)',
-    );
-    await db.execute(
-      'CREATE TABLE IF NOT EXISTS goal_contributions (id INTEGER PRIMARY KEY AUTOINCREMENT, goalId INTEGER NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, note TEXT, FOREIGN KEY (goalId) REFERENCES goals(id) ON DELETE CASCADE)',
-    );
-    await db.execute(
-      'CREATE TABLE IF NOT EXISTS debts (id INTEGER PRIMARY KEY AUTOINCREMENT, personName TEXT NOT NULL, totalAmount REAL NOT NULL, paidAmount REAL NOT NULL, type TEXT NOT NULL, date TEXT NOT NULL, dueDate TEXT, note TEXT, isSettled INTEGER NOT NULL)',
-    );
-    await db.execute(
-      'CREATE TABLE IF NOT EXISTS debt_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, debtId INTEGER NOT NULL, amount REAL NOT NULL, date TEXT NOT NULL, note TEXT, FOREIGN KEY (debtId) REFERENCES debts(id) ON DELETE CASCADE)',
-    );
-
     // Create indexes on foreign keys to optimize relational joins & cascade integrity (SEC-05)
     await db.execute('CREATE INDEX IF NOT EXISTS idx_transfers_from_account ON transfers(fromAccountId)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_transfers_to_account ON transfers(toAccountId)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_goal_contributions_goal ON goal_contributions(goalId)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON debt_payments(debtId)');
 
     final count =
         Sqflite.firstIntValue(
@@ -382,106 +365,7 @@ class DBHelper {
   Future<int> insertTransfer(Map<String, dynamic> transfer) async =>
       (await database).insert('transfers', transfer);
 
-  Future<int> insertGoal(GoalModel goal) async =>
-      (await database).insert('goals', goal.toMap());
-  Future<List<GoalModel>> getAllGoals() async => (await database)
-      .query('goals', orderBy: 'isCompleted ASC, deadline ASC')
-      .then((rows) => rows.map(GoalModel.fromMap).toList());
-  Future<int> updateGoal(GoalModel goal) async => (await database).update(
-    'goals',
-    goal.toMap(),
-    where: 'id = ?',
-    whereArgs: [goal.id],
-  );
-  Future<int> deleteGoal(int id) async =>
-      (await database).delete('goals', where: 'id = ?', whereArgs: [id]);
-  Future<void> addGoalContribution(
-    int goalId,
-    double amount,
-    String note,
-  ) async {
-    final db = await database;
-    await db.transaction((txn) async {
-      await txn.insert('goal_contributions', {
-        'goalId': goalId,
-        'amount': amount,
-        'date': DateTime.now().toIso8601String(),
-        'note': note,
-      });
-      final rows = await txn.query(
-        'goals',
-        where: 'id = ?',
-        whereArgs: [goalId],
-        limit: 1,
-      );
-      final goal = GoalModel.fromMap(rows.first);
-      final current = goal.currentAmount + amount;
-      await txn.update(
-        'goals',
-        {
-          'currentAmount': current,
-          'isCompleted': current >= goal.targetAmount ? 1 : 0,
-        },
-        where: 'id = ?',
-        whereArgs: [goalId],
-      );
-    });
-  }
 
-  Future<List<Map<String, dynamic>>> getGoalContributions(int goalId) async =>
-      (await database).query(
-        'goal_contributions',
-        where: 'goalId = ?',
-        whereArgs: [goalId],
-        orderBy: 'date DESC',
-      );
-
-  Future<int> insertDebt(DebtModel debt) async =>
-      (await database).insert('debts', debt.toMap());
-  Future<List<DebtModel>> getAllDebts() async => (await database)
-      .query('debts', orderBy: 'isSettled ASC, dueDate ASC')
-      .then((rows) => rows.map(DebtModel.fromMap).toList());
-  Future<int> updateDebt(DebtModel debt) async => (await database).update(
-    'debts',
-    debt.toMap(),
-    where: 'id = ?',
-    whereArgs: [debt.id],
-  );
-  Future<int> deleteDebt(int id) async =>
-      (await database).delete('debts', where: 'id = ?', whereArgs: [id]);
-  Future<void> addDebtPayment(int debtId, double amount, String note) async {
-    final db = await database;
-    await db.transaction((txn) async {
-      await txn.insert('debt_payments', {
-        'debtId': debtId,
-        'amount': amount,
-        'date': DateTime.now().toIso8601String(),
-        'note': note,
-      });
-      final rows = await txn.query(
-        'debts',
-        where: 'id = ?',
-        whereArgs: [debtId],
-        limit: 1,
-      );
-      final debt = DebtModel.fromMap(rows.first);
-      final paid = debt.paidAmount + amount;
-      await txn.update(
-        'debts',
-        {'paidAmount': paid, 'isSettled': paid >= debt.totalAmount ? 1 : 0},
-        where: 'id = ?',
-        whereArgs: [debtId],
-      );
-    });
-  }
-
-  Future<List<Map<String, dynamic>>> getDebtPayments(int debtId) async =>
-      (await database).query(
-        'debt_payments',
-        where: 'debtId = ?',
-        whereArgs: [debtId],
-        orderBy: 'date DESC',
-      );
 
   static const Map<String, Set<String>> _tableAllowedColumns = {
     'categories': {'id', 'name', 'iconCode', 'colorValue', 'type', 'isCustom'},
@@ -489,10 +373,6 @@ class DBHelper {
     'transactions': {'id', 'amount', 'type', 'categoryId', 'date', 'note', 'paymentMode', 'isRecurring', 'accountId'},
     'budgets': {'id', 'month', 'year', 'categoryId', 'limitAmount'},
     'transfers': {'id', 'fromAccountId', 'toAccountId', 'amount', 'date', 'note'},
-    'goals': {'id', 'name', 'targetAmount', 'currentAmount', 'deadline', 'colorValue', 'iconCode', 'isCompleted'},
-    'goal_contributions': {'id', 'goalId', 'amount', 'date', 'note'},
-    'debts': {'id', 'personName', 'totalAmount', 'paidAmount', 'type', 'date', 'dueDate', 'note', 'isSettled'},
-    'debt_payments': {'id', 'debtId', 'amount', 'date', 'note'},
   };
 
   static const List<String> _restoreTableOrder = [
@@ -501,10 +381,6 @@ class DBHelper {
     'transactions',
     'budgets',
     'transfers',
-    'goals',
-    'goal_contributions',
-    'debts',
-    'debt_payments',
   ];
 
   /// SEC-02 & SEC-04: Export all tables with cryptographic SHA-256 integrity & AES-256 encryption

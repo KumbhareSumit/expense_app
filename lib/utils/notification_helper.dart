@@ -43,22 +43,6 @@ class NotificationHelper {
     }
   }
 
-  static Future<bool?> requestPermission() async {
-    final androidImpl = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    final androidGranted = await androidImpl?.requestNotificationsPermission();
-
-    final iosImpl = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-    final iosGranted = await iosImpl?.requestPermissions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    return androidGranted ?? iosGranted;
-  }
-
   static Future<void> showBudgetAlert({
     required String title,
     required String body,

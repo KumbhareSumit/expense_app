@@ -15,8 +15,6 @@ class IconHelper {
         return Icons.medical_services;
       case 57895:
         return Icons.work;
-      case 58941:
-        return Icons.trending_up;
       case 0xE8B0:
         return Icons.account_balance_wallet;
       case 0xE84F:

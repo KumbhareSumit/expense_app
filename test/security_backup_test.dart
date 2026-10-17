@@ -91,10 +91,6 @@ void main() {
         'transactions': [],
         'budgets': [],
         'transfers': [],
-        'goals': [],
-        'goal_contributions': [],
-        'debts': [],
-        'debt_payments': [],
       };
 
       final dataJson = jsonEncode(validData);
@@ -168,31 +164,6 @@ void main() {
             'createdAt': DateTime.now().toIso8601String(),
           }
         ],
-        'goals': [
-          {
-            'id': 500,
-            'name': 'Test Goal',
-            'targetAmount': 5000.0,
-            'currentAmount': 1000.0,
-            'deadline': '2026-12-31',
-            'colorValue': 0xFF123456,
-            'iconCode': 0xE8B0,
-            'isCompleted': 0,
-          }
-        ],
-        'debts': [
-          {
-            'id': 500,
-            'personName': 'Alice',
-            'totalAmount': 2000.0,
-            'paidAmount': 500.0,
-            'type': 'lent',
-            'date': '2026-10-01',
-            'dueDate': '2026-11-01',
-            'note': 'Test',
-            'isSettled': 0,
-          }
-        ],
         'budgets': [
           {
             'id': 500,
@@ -216,24 +187,6 @@ void main() {
             'isRecurring': 0,
           }
         ],
-        'goal_contributions': [
-          {
-            'id': 500,
-            'goalId': 500,
-            'amount': 1000.0,
-            'date': '2026-10-01',
-            'note': 'Saved',
-          }
-        ],
-        'debt_payments': [
-          {
-            'id': 500,
-            'debtId': 500,
-            'amount': 500.0,
-            'date': '2026-10-01',
-            'note': 'Part payment',
-          }
-        ],
       };
 
       final dataJson = jsonEncode(testBackupData);
@@ -254,8 +207,8 @@ void main() {
       final restoredTx = await dbHelper.getAllTransactions();
       expect(restoredTx.any((t) => t.id == 500), isTrue);
 
-      final restoredDebts = await dbHelper.getAllDebts();
-      expect(restoredDebts.any((d) => d.id == 500), isTrue);
+      final restoredAccounts = await dbHelper.getAllAccounts();
+      expect(restoredAccounts.any((a) => a.id == 500), isTrue);
     });
 
     test('SEC-02: AES-256 Encryption & Decryption roundtrip with EncryptionHelper', () async {

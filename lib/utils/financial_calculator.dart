@@ -6,7 +6,6 @@ import '../models/transaction_model.dart';
 class MonthlyFinancialSummary {
   final double totalIncome;
   final double totalExpense;
-  final double totalInvestment;
   final double balance;
   final double accountOpeningIncome;
   final double carriedForwardFromPrevious;
@@ -16,7 +15,6 @@ class MonthlyFinancialSummary {
   const MonthlyFinancialSummary({
     required this.totalIncome,
     required this.totalExpense,
-    required this.totalInvestment,
     required this.balance,
     this.accountOpeningIncome = 0.0,
     this.carriedForwardFromPrevious = 0.0,
@@ -74,7 +72,6 @@ class FinancialCalculator {
   ) {
     double txIncome = 0;
     double txExpense = 0;
-    double txInvestment = 0;
 
     for (final t in transactions) {
       final local = t.date.toLocal();
@@ -85,8 +82,6 @@ class FinancialCalculator {
           txIncome += t.amount;
         } else if (t.type == 'expense') {
           txExpense += t.amount;
-        } else if (t.type == 'investment') {
-          txInvestment += t.amount;
         }
       }
     }
@@ -108,7 +103,6 @@ class FinancialCalculator {
     return MonthlyFinancialSummary(
       totalIncome: totalIncome,
       totalExpense: txExpense,
-      totalInvestment: txInvestment,
       balance: balance,
       accountOpeningIncome: acctIncome,
       regularIncome: txIncome,
@@ -135,7 +129,6 @@ class FinancialCalculator {
 
     double txIncome = 0;
     double txExpense = 0;
-    double txInvestment = 0;
 
     for (final t in transactions) {
       final local = t.date.toLocal();
@@ -144,8 +137,6 @@ class FinancialCalculator {
           txIncome += t.amount;
         } else if (t.type == 'expense') {
           txExpense += t.amount;
-        } else if (t.type == 'investment') {
-          txInvestment += t.amount;
         }
       }
     }
@@ -166,7 +157,6 @@ class FinancialCalculator {
     return MonthlyFinancialSummary(
       totalIncome: totalIncome,
       totalExpense: txExpense,
-      totalInvestment: txInvestment,
       balance: balance,
       accountOpeningIncome: acctIncome,
       regularIncome: txIncome,
@@ -196,7 +186,6 @@ class FinancialCalculator {
     // Transactions in target month
     double txIncome = 0.0;
     double txExpense = 0.0;
-    double txInvestment = 0.0;
 
     for (final t in transactions) {
       if (t.date.year == targetDate.year && t.date.month == targetDate.month) {
@@ -204,8 +193,6 @@ class FinancialCalculator {
           txIncome += t.amount;
         } else if (t.type == 'expense') {
           txExpense += t.amount;
-        } else if (t.type == 'investment') {
-          txInvestment += t.amount;
         }
       }
     }
@@ -229,7 +216,6 @@ class FinancialCalculator {
     return MonthlyFinancialSummary(
       totalIncome: monthIncome,
       totalExpense: monthExpense,
-      totalInvestment: txInvestment,
       balance: monthBalance,
       accountOpeningIncome: acctIncome,
       carriedForwardFromPrevious: 0.0,
@@ -246,7 +232,6 @@ class FinancialCalculator {
   ) {
     double txIncome = 0;
     double txExpense = 0;
-    double txInvestment = 0;
 
     for (final t in transactions) {
       if (t.date.year == targetDate.year) {
@@ -254,8 +239,6 @@ class FinancialCalculator {
           txIncome += t.amount;
         } else if (t.type == 'expense') {
           txExpense += t.amount;
-        } else if (t.type == 'investment') {
-          txInvestment += t.amount;
         }
       }
     }
@@ -274,7 +257,6 @@ class FinancialCalculator {
     return MonthlyFinancialSummary(
       totalIncome: totalIncome,
       totalExpense: txExpense,
-      totalInvestment: txInvestment,
       balance: balance,
       accountOpeningIncome: acctIncome,
       regularIncome: txIncome,

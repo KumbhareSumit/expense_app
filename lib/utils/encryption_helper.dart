@@ -113,30 +113,4 @@ class EncryptionHelper {
       throw FormatException('Decryption error: $e');
     }
   }
-
-  /// Encrypts an individual text string (e.g. sensitive transaction notes / account credentials)
-  static String encryptSensitiveText(String text, {String? keySeed}) {
-    if (text.isEmpty) return text;
-    final password = keySeed ?? defaultAppKeySeed;
-    const salt = 'APP_LOCAL_STATIC_SALT_2026';
-    final key = deriveKey(password, salt);
-    final iv = enc.IV.fromLength(16);
-    final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
-    return encrypter.encrypt(text, iv: iv).base64;
-  }
-
-  /// Decrypts an individual text string
-  static String decryptSensitiveText(String encryptedBase64, {String? keySeed}) {
-    if (encryptedBase64.isEmpty) return encryptedBase64;
-    try {
-      final password = keySeed ?? defaultAppKeySeed;
-      const salt = 'APP_LOCAL_STATIC_SALT_2026';
-      final key = deriveKey(password, salt);
-      final iv = enc.IV.fromLength(16);
-      final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
-      return encrypter.decrypt64(encryptedBase64, iv: iv);
-    } catch (_) {
-      return encryptedBase64; // Return as-is if plaintext legacy
-    }
-  }
 }
