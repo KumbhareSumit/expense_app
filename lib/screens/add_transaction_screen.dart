@@ -12,6 +12,8 @@ import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../utils/icon_helper.dart';
 import '../utils/notification_helper.dart';
+import '../utils/calculator_engine.dart';
+import '../widgets/calculator_keyboard.dart';
 
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
@@ -33,6 +35,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
+  final _amountFocusNode = FocusNode();
+  final _scrollController = ScrollController();
 
   String _type = 'expense';
   int? _selectedCategoryId;
@@ -40,6 +44,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   String _paymentMode = 'Cash'; // Default payment mode
   int? _selectedAccountId;
 
+  bool _showCalculator = false;
+  bool _useSystemKeyboard = false;
 
   bool get _isEditing => widget.transaction != null;
 
@@ -53,21 +59,126 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       _selectedDate = transaction.date;
       _paymentMode = transaction.paymentMode;
       _selectedAccountId = transaction.accountId;
-      _amountController.text = transaction.amount.toString();
+      _amountController.text =
+          CalculatorEngine.formatResult(transaction.amount);
       _noteController.text = transaction.note;
     } else {
       _selectedAccountId = widget.initialAccountId;
+    }
+
+    _amountController.addListener(_onAmountChanged);
+    _amountFocusNode.addListener(_onAmountFocusChanged);
+  }
+
+  void _onAmountChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _onAmountFocusChanged() {
+    if (_amountFocusNode.hasFocus && !_useSystemKeyboard) {
+      _openCalculator();
     }
   }
 
   @override
   void dispose() {
+    _amountController.removeListener(_onAmountChanged);
+    _amountFocusNode.removeListener(_onAmountFocusChanged);
     _amountController.dispose();
     _noteController.dispose();
+    _amountFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
+  void _openCalculator() {
+    if (_useSystemKeyboard) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _showCalculator = true;
+    });
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          160.0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _onCalculatorKeyPressed(String key) {
+    setState(() {
+      _amountController.text = CalculatorEngine.handleKeyPress(
+        currentExpression: _amountController.text,
+        key: key,
+      );
+      _amountController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _amountController.text.length),
+      );
+    });
+  }
+
+  void _onCalculatorBackspace() {
+    setState(() {
+      _amountController.text = CalculatorEngine.handleKeyPress(
+        currentExpression: _amountController.text,
+        key: '⌫',
+      );
+      _amountController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _amountController.text.length),
+      );
+    });
+  }
+
+  void _onCalculatorClear() {
+    setState(() {
+      _amountController.clear();
+    });
+  }
+
+  void _onCalculatorEquals() {
+    setState(() {
+      final res = CalculatorEngine.evaluate(_amountController.text);
+      if (res != null) {
+        _amountController.text = CalculatorEngine.formatResult(res);
+        _amountController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _amountController.text.length),
+        );
+      }
+    });
+  }
+
+  void _onCalculatorDone() {
+    final res = CalculatorEngine.evaluate(_amountController.text);
+    if (res != null) {
+      _amountController.text = CalculatorEngine.formatResult(res);
+    }
+    setState(() {
+      _showCalculator = false;
+    });
+  }
+
+  void _toggleKeyboardType() {
+    setState(() {
+      _useSystemKeyboard = !_useSystemKeyboard;
+      if (_useSystemKeyboard) {
+        _showCalculator = false;
+        _amountFocusNode.requestFocus();
+      } else {
+        FocusScope.of(context).unfocus();
+        _showCalculator = true;
+      }
+    });
+  }
+
   Future<void> _selectDate(BuildContext context) async {
+    if (_showCalculator) {
+      setState(() => _showCalculator = false);
+    }
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -82,6 +193,12 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   }
 
   void _submitData() {
+    // Evaluate any pending formula before validating
+    final evaluated = CalculatorEngine.evaluate(_amountController.text);
+    if (evaluated != null) {
+      _amountController.text = CalculatorEngine.formatResult(evaluated);
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
     final amount = double.tryParse(_amountController.text) ?? 0;
@@ -194,315 +311,308 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
 
     final theme = Theme.of(context);
 
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final livePreview =
+        CalculatorEngine.evaluatePreview(_amountController.text);
+
     return Container(
-      padding: EdgeInsets.only(
-        top: 20,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
       ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
         ),
       ),
-      child: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _isEditing ? 'Edit Transaction' : 'Add Transaction',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
-                    ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+              top: 20,
+              left: 20,
+              right: 20,
+              bottom: 8,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _isEditing ? 'Edit Transaction' : 'Add Transaction',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                bottom: _showCalculator ? 12 : bottomInset + 20,
               ),
-              const SizedBox(height: 20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
 
-              DropdownButtonFormField<String>(
-                initialValue: _type,
-                decoration: const InputDecoration(
-                  labelText: 'Add type *',
-                  prefixIcon: Icon(Icons.add_circle_outline),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'expense', child: Text('Expense')),
-                  DropdownMenuItem(value: 'income', child: Text('Income')),
-                ],
-                onChanged: _isEditing
-                    ? null
-                    : (value) => setState(() {
-                        _type = value ?? _type;
-                        _selectedCategoryId = null;
-                      }),
-              ),
-              const SizedBox(height: 20),
-
-              DropdownButtonFormField<int?>(
-                initialValue: selectedAccountId,
-                decoration: const InputDecoration(
-                  labelText: 'Account / Wallet *',
-                  prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-                ),
-                items: accountOptions.values
-                    .map(
-                      (account) => DropdownMenuItem<int?>(
-                        value: account.id,
-                        child: Text(account.name),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) =>
-                    setState(() => _selectedAccountId = value),
-                validator: (value) =>
-                    value == null ? 'Select an account or wallet' : null,
-              ),
-              const SizedBox(height: 20),
-
-              // Amount Field
-              TextFormField(
-                controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Amount *',
-                  prefixText: '$currency ',
-                  border: const OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Enter amount';
-                  }
-                  final amount = double.tryParse(value);
-                  if (amount == null || amount <= 0) {
-                    return 'Enter valid amount > 0';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              // Category Selector
-              FormField<int>(
-                key: ValueKey(_type),
-                initialValue: _selectedCategoryId,
-                validator: (value) {
-                  if (value == null) {
-                    return 'Please select a category';
-                  }
-                  return null;
-                },
-                builder: (formFieldState) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Category * (${_type.toUpperCase()})',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextButton.icon(
-                            onPressed: () => _showQuickAddCategoryDialog(
-                              context,
-                              formFieldState,
+                    // Add type & Account / Wallet placed side-by-side in a single row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _type,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Type *',
+                              prefixIcon:
+                                  Icon(Icons.add_circle_outline, size: 20),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
                             ),
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text('Add Category'),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: 'expense', child: Text('Expense')),
+                              DropdownMenuItem(
+                                  value: 'income', child: Text('Income')),
+                            ],
+                            onChanged: _isEditing
+                                ? null
+                                : (value) => setState(() {
+                                    _type = value ?? _type;
+                                    _selectedCategoryId = null;
+                                  }),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      SizedBox(
-                        height: 120,
-                        child: filteredCategories.isEmpty
-                            ? Center(
-                                child: TextButton.icon(
-                                  onPressed: () =>
-                                      _showQuickAddCategoryDialog(
-                                    context,
-                                    formFieldState,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<int?>(
+                            initialValue: selectedAccountId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Account / Wallet *',
+                              prefixIcon: Icon(
+                                Icons.account_balance_wallet_outlined,
+                                size: 20,
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                            ),
+                            items: accountOptions.values
+                                .map(
+                                  (account) => DropdownMenuItem<int?>(
+                                    value: account.id,
+                                    child: Text(
+                                      account.name,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                  icon: const Icon(Icons.add_circle_outline),
-                                  label: Text(
-                                    'Add first ${_type.toUpperCase()} category',
-                                  ),
-                                ),
-                              )
-                            : ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: filteredCategories.length + 1,
-                                separatorBuilder: (ctx, idx) =>
-                                    const SizedBox(width: 12),
-                                itemBuilder: (context, index) {
-                                  if (index == filteredCategories.length) {
-                                    return InkWell(
-                                      borderRadius: BorderRadius.circular(16),
-                                      onTap: () =>
-                                          _showQuickAddCategoryDialog(
-                                        context,
-                                        formFieldState,
-                                      ),
-                                      child: SizedBox(
-                                        width: 72,
-                                        child: Column(
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.all(12),
-                                              decoration: BoxDecoration(
-                                                color: theme.colorScheme
-                                                    .surfaceContainerHighest
-                                                    .withValues(alpha: .5),
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: theme
-                                                      .colorScheme.outline
-                                                      .withValues(alpha: .5),
-                                                  style: BorderStyle.solid,
-                                                ),
-                                              ),
-                                              child: Icon(
-                                                Icons.add,
-                                                color: theme
-                                                    .colorScheme.primary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            const Text(
-                                              'New',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight:
-                                                    FontWeight.normal,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }
+                                )
+                                .toList(),
+                            onChanged: (value) =>
+                                setState(() => _selectedAccountId = value),
+                            validator: (value) =>
+                                value == null ? 'Select account' : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
 
-                                  final cat = filteredCategories[index];
-                                  final isSelected =
-                                      _selectedCategoryId == cat.id;
-                                  return InkWell(
-                                    borderRadius: BorderRadius.circular(16),
-                                    onTap: () {
-                                      setState(
-                                          () => _selectedCategoryId = cat.id);
-                                      formFieldState.didChange(cat.id);
-                                    },
-                                    child: SizedBox(
-                                      width: 72,
-                                      child: Column(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: isSelected
-                                                  ? Color(cat.colorValue)
-                                                  : Color(cat.colorValue)
-                                                      .withValues(alpha: .15),
-                                              shape: BoxShape.circle,
-                                              border: isSelected
-                                                  ? Border.all(
-                                                      color: theme
-                                                          .colorScheme.onSurface,
-                                                      width: 2,
-                                                    )
-                                                  : null,
-                                            ),
-                                            child: Icon(
-                                              IconHelper.getIcon(cat.iconCode),
-                                              color: isSelected
-                                                  ? (Color(cat.colorValue)
-                                                                .computeLuminance() >
-                                                            .5
-                                                        ? Colors.black87
-                                                        : Colors.white)
-                                                  : Color(cat.colorValue),
-                                            ),
+                    // Category & Date placed side-by-side in a single row
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<int?>(
+                            key: ValueKey('$_type-$_selectedCategoryId'),
+                            initialValue: filteredCategories
+                                    .any((c) => c.id == _selectedCategoryId)
+                                ? _selectedCategoryId
+                                : null,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'Category *',
+                              prefixIcon:
+                                  const Icon(Icons.category_outlined, size: 20),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.add_circle_outline,
+                                    size: 18),
+                                tooltip: 'Add new category',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                onPressed: () =>
+                                    _showQuickAddCategoryDialog(context),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                            ),
+                            items: filteredCategories
+                                .map(
+                                  (cat) => DropdownMenuItem<int?>(
+                                    value: cat.id,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          margin:
+                                              const EdgeInsets.only(right: 8),
+                                          decoration: BoxDecoration(
+                                            color: Color(cat.colorValue)
+                                                .withValues(alpha: 0.2),
+                                            shape: BoxShape.circle,
                                           ),
-                                          const SizedBox(height: 6),
-                                          Text(
+                                          child: Icon(
+                                            IconHelper.getIcon(cat.iconCode),
+                                            size: 12,
+                                            color: Color(cat.colorValue),
+                                          ),
+                                        ),
+                                        Flexible(
+                                          child: Text(
                                             cat.name,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                            maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
-                                  );
-                                },
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) =>
+                                setState(() => _selectedCategoryId = value),
+                            validator: (value) =>
+                                value == null ? 'Select category' : null,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _selectDate(context),
+                            borderRadius: BorderRadius.circular(4),
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Date *',
+                                prefixIcon: Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 20,
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 14,
+                                ),
+                                border: OutlineInputBorder(),
                               ),
-                      ),
-                      if (formFieldState.hasError)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            formFieldState.errorText!,
-                            style: TextStyle(
-                              color: theme.colorScheme.error,
-                              fontSize: 12,
+                              child: Text(
+                                DateFormat('MMM dd, yyyy')
+                                    .format(_selectedDate),
+                                style: theme.textTheme.bodyMedium,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                         ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
 
-              // Date Picker
-              InkWell(
-                onTap: () => _selectDate(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: theme.colorScheme.outline),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(DateFormat('MMM dd, yyyy').format(_selectedDate)),
-                      const Icon(Icons.calendar_today),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
+                    // Amount Field with Custom Calculator Keypad Integration
+                    TextFormField(
+                      controller: _amountController,
+                      focusNode: _amountFocusNode,
+                      readOnly: !_useSystemKeyboard,
+                      showCursor: true,
+                      onTap: _openCalculator,
+                      keyboardType: _useSystemKeyboard
+                          ? const TextInputType.numberWithOptions(decimal: true)
+                          : TextInputType.none,
+                      decoration: InputDecoration(
+                        labelText: 'Amount *',
+                        prefixText: '$currency ',
+                        helperText: livePreview != null
+                            ? 'Calculates to: $currency${CalculatorEngine.formatResult(livePreview)}'
+                            : null,
+                        helperStyle: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_amountController.text.isNotEmpty)
+                              IconButton(
+                                icon: const Icon(Icons.clear, size: 20),
+                                tooltip: 'Clear amount',
+                                onPressed: () {
+                                  setState(() {
+                                    _amountController.clear();
+                                  });
+                                },
+                              ),
+                            IconButton(
+                              icon: Icon(
+                                _useSystemKeyboard
+                                    ? Icons.calculate_outlined
+                                    : Icons.calculate,
+                                color: !_useSystemKeyboard
+                                    ? theme.colorScheme.primary
+                                    : null,
+                              ),
+                              tooltip: _useSystemKeyboard
+                                  ? 'Switch to Calculator Keypad'
+                                  : 'Switch to Standard Keyboard',
+                              onPressed: _toggleKeyboardType,
+                            ),
+                          ],
+                        ),
+                        border: const OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Enter amount';
+                        }
+                        final amount = CalculatorEngine.evaluate(value);
+                        if (amount == null || amount <= 0) {
+                          return 'Enter valid amount > 0';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
 
-              // Note Field
+                    // Note Field
               TextFormField(
                 controller: _noteController,
+                onTap: () {
+                  if (_showCalculator) {
+                    setState(() => _showCalculator = false);
+                  }
+                },
                 decoration: const InputDecoration(
                   labelText: 'Note (Optional)',
                   border: OutlineInputBorder(),
@@ -526,13 +636,28 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
           ),
         ),
       ),
+    ),
+          if (_showCalculator)
+            CalculatorKeyboard(
+              currencySymbol: currency,
+              currentExpression: _amountController.text,
+              onKeyPressed: _onCalculatorKeyPressed,
+              onBackspace: _onCalculatorBackspace,
+              onClear: _onCalculatorClear,
+              onEquals: _onCalculatorEquals,
+              onDone: _onCalculatorDone,
+              onToggleSystemKeyboard: _toggleKeyboardType,
+              onClose: () => setState(() => _showCalculator = false),
+            ),
+        ],
+      ),
     );
   }
 
   void _showQuickAddCategoryDialog(
-    BuildContext context,
-    FormFieldState<int> formFieldState,
-  ) {
+    BuildContext context, [
+    FormFieldState<int?>? formFieldState,
+  ]) {
     final nameController = TextEditingController();
     var selectedType = _type;
     var selectedIcon = IconHelper.availableIcons.first;
@@ -693,7 +818,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                     );
                 if (mounted && newCat != null && newCat.id != null) {
                   setState(() => _selectedCategoryId = newCat.id);
-                  formFieldState.didChange(newCat.id);
+                  formFieldState?.didChange(newCat.id);
                 }
                 if (dialogContext.mounted) {
                   Navigator.pop(dialogContext);

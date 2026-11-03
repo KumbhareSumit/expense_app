@@ -5,7 +5,6 @@ import '../providers/transaction_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/account_provider.dart';
-import '../providers/budget_provider.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../models/account_model.dart';
@@ -33,7 +32,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final transactions = ref.watch(transactionProvider);
     final categories = ref.watch(categoryProvider);
     final settings = ref.watch(settingsProvider);
-    final budgets = ref.watch(budgetProvider);
     final currency = settings.currencySymbol;
     final accountState = ref.watch(accountProvider);
 
@@ -77,30 +75,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final incomeSubtitle = summary.getIncomeSubtitle(currency);
 
     final now = DateTime.now();
-
-    // Calculate monthly budget limit for the active month
-    final matchingOverall = budgets
-        .where((b) => b.month == now.month && b.year == now.year && b.categoryId == null)
-        .toList();
-
-    double monthlyBudgetLimit = 0.0;
-    if (matchingOverall.isNotEmpty) {
-      monthlyBudgetLimit = matchingOverall.last.limitAmount;
-    } else {
-      final matchingCategoryBudgets = budgets
-          .where((b) => b.month == now.month && b.year == now.year && b.categoryId != null)
-          .toList();
-      if (matchingCategoryBudgets.isNotEmpty) {
-        monthlyBudgetLimit = matchingCategoryBudgets.fold(0.0, (sum, b) => sum + b.limitAmount);
-      } else if (budgets.isNotEmpty) {
-        final overallAny = budgets.where((b) => b.categoryId == null).toList();
-        if (overallAny.isNotEmpty) {
-          monthlyBudgetLimit = overallAny.last.limitAmount;
-        } else {
-          monthlyBudgetLimit = budgets.fold(0.0, (sum, b) => sum + b.limitAmount);
-        }
-      }
-    }
 
     final dateHeaderStr = DateFormat('EEEE, d MMM').format(now);
     final fintech = context.fintech;
@@ -162,8 +136,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               subtitle: selectedAccount != null
                   ? '${selectedAccount.name} Balance'
                   : (incomeSubtitle ?? 'Available balance'),
-              monthlyBudget: selectedAccount == null && monthlyBudgetLimit > 0 ? monthlyBudgetLimit : null,
-              spentAmount: totalExpense,
               showActions: false,
             ),
             const SizedBox(height: 14),

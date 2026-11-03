@@ -471,8 +471,6 @@ class _WebCrmLayoutState extends ConsumerState<WebCrmLayout> {
                       flex: 4,
                       child: BalanceCard(
                         balance: balance,
-                        monthlyBudget: currentMonthBudget?.limitAmount,
-                        monthlyExpense: currentMonthExpenses,
                         currency: currency,
                       ),
                     ),
